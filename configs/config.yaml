@@ -1,0 +1,61 @@
+# =========================
+# Dataset configuration
+# =========================
+dataset:
+  name: "CoCaHis"
+  path: ${paths.data_dir}/CoCaHis.hdf5
+  image_type: "raw"             # One of ["raw", "sn1", "sn2"]
+  train_transform: null         # Replace with serialized transform
+  val_transform: null           # Replace with serialized transform
+  tile_size: 512                # Tile size (if tiling is requested)
+  overlap: 64                   # Overlap between tiles
+  val_fraction: 0.2             # Fraction of data for validation
+
+# =========================
+# Modeling configuration
+# =========================
+model:
+  architecture: "UnetPlusPlus"
+  encoder_name: "resnet101"     # Encoder backbone
+  encoder_weights: "imagenet"   # Pretrained weights or None
+  in_channels: 3
+  classes: 1
+  checkpoint_path: null
+
+# =========================
+# Loss function
+# =========================
+loss:
+  type: "single"                # "single" or "combined"
+  primary: "dice"               # used if single or combined
+  secondary: "bce"              # only used if combined #"bce" , "focal"
+  weights: [0.7, 0.3]           # weight for [primary, secondary]
+  mode: "binary"                # dice mode
+  smooth: 1.0e-05
+  focal_gamma: 2.0              # used only if focal
+
+# =========================
+# Optimization / Scheduler
+# =========================
+training:
+  optimizer: "Adam"              # e.g., Adam, SGD, RMSprop
+  scheduler: "ReduceLROnPlateau" # e.g., CosineAnnealingLR, StepLR, etc.
+  weight_decay: 1.0e-05
+  scaler: true                   # Whether to use GradScaler (for mixed precision)
+  batch_size: 8
+  num_epochs: 40
+  learning_rate: 1.0e-05
+  use_amp: true                  # Use automatic mixed precision
+  seed: 42
+  device: "auto"
+
+# =========================
+# Paths
+# =========================
+paths:
+  project_root: ${oc.env:PROJECT_ROOT,.}
+  data_root: ${oc.env:DATA_ROOT,.}
+  data_dir: ${paths.data_root}
+  checkpoint_dir: ${paths.project_root}/checkpoints
+  log_dir: ${paths.project_root}/logs
+  
