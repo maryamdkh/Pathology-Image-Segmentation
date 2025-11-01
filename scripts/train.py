@@ -19,6 +19,18 @@ from configs.config import load_config, setup_directories
 from utils.logging import setup_mlflow_logger
 from training.trainer import train_model
 
+
+def setup_logging(level=logging.INFO):
+    """Setup basic logging configuration."""
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout),  # Log to console
+            logging.FileHandler('evaluation.log')  # Optional: also log to file
+        ]
+    )
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Train segmentation model")
@@ -84,6 +96,8 @@ def main():
     try:
         # Load configuration
         config = load_config(args.config)
+        log_level = logging.INFO
+        setup_logging(level=log_level)
         logger = logging.getLogger(__name__)
         
         logger.info("Starting training process...")
