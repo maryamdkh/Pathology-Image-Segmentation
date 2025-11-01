@@ -4,8 +4,40 @@ import numpy as np
 import math
 import cv2
 from sklearn.model_selection import train_test_split
+from data.datasets import CoCaHisDataset
+from data.transforms import get_train_transform, get_val_transform
+from torch.utils.data import DataLoader
 
+def create_dataloaders(config,splits):
+    ds_cfg = config["dataset"]
+    patient_split = build_Cocahis_patient_split(
+        h5_path=ds_cfg['path'],
+        val_fraction=ds_cfg["val_fraction"],
+        seed=config["training"]["seed"]
+    )
+    transform_mapping = {
+        "train": get_train_transform(),
+        "val": get_val_transform(),
+        "test": None
+    }
+    train_loaders = {}
+    for split in splits:
+        dataset = CoCaHisDataset(
+            h5_path= ds_cfg['path'],
+            image_type= ds_cfg["image_type"],
+            split=split,
+            patient_split=None if split == "test" else patient_split,
+            tile_size=ds_cfg["tile_size"],
+            overlap=ds_cfg["overlap"],
+            transform= transform_mapping[split]
+        )
+        print(f"Number of samples in {split} dataset: {len(dataset)}")
 
+        train_loader = DataLoader(dataset, batch_size=config["training"]["batch_size"],
+                              shuffle=True, num_workers=2, pin_memory=True)
+        train_loaders[split] = train_loader
+
+    return patient_split,train_loaders
 
 def build_Cocahis_patient_split(h5_path: str, val_fraction: float = 0.2, seed: int = 42):
     with h5py.File(h5_path, "r") as f:
@@ -23,8 +55,6 @@ def build_Cocahis_patient_split(h5_path: str, val_fraction: float = 0.2, seed: i
                                                     shuffle=True)
 
     return {"train_patients": train_patients, "val_patients": val_patients}
-
-
 
 def pad_to_multiple_of_32(img, **kwargs):
     """
