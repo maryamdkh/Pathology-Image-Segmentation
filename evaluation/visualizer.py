@@ -7,7 +7,7 @@ import torch
 import cv2
 import matplotlib.pyplot as plt
 from torchvision import transforms
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 from pathlib import Path
 import logging
 

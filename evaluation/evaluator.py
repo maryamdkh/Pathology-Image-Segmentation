@@ -9,7 +9,7 @@ import json
 import logging
 
 from evaluation.metrics_calculator import calculate_detailed_segmentation_report
-from evaluation.visualizer import visualize_prediction_comparison
+from evaluation.visualizer import visualize_prediction_comparison, prepare_image_for_visualization, prepare_mask_for_visualization
 
 logger = logging.getLogger(__name__)
 
@@ -64,20 +64,30 @@ def generate_evaluation_visualizations(
             if samples_processed >= num_samples:
                 break
                 
+            # Prepare image and mask
+            image_np = prepare_image_for_visualization(images[i].numpy())
+            mask_np = prepare_mask_for_visualization(masks[i].numpy(), image_np.shape[:2])
+            
             save_path = output_dir / f"patient_{patient_nums[i].item()}_image_{image_nums[i].item()}.png"
             
-            visualize_prediction_comparison(
-                model=model,
-                image=images[i].numpy(),
-                device=device,
-                ground_truth_mask=masks[i].numpy(),
-                tile_size=tile_size,
-                overlap=overlap,
-                save_path=save_path
-            )
-            
-            saved_paths.append(save_path)
-            samples_processed += 1
+            try:
+                visualize_prediction_comparison(
+                    model=model,
+                    image=image_np,
+                    device=device,
+                    ground_truth_mask=mask_np,
+                    tile_size=tile_size,
+                    overlap=overlap,
+                    save_path=save_path
+                )
+                
+                saved_paths.append(save_path)
+                samples_processed += 1
+                logger.info(f"✅ Generated visualization {samples_processed}/{num_samples}")
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to generate visualization for sample {i}: {e}")
+                continue
     
     logger.info(f"Generated {len(saved_paths)} visualization samples")
     return saved_paths
