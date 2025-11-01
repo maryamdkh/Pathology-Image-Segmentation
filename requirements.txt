@@ -1,0 +1,14 @@
+segmentation-models-pytorch
+albumentations==1.4.7
+timm
+GPUtil
+mlflow
+torch
+torchvision
+numpy
+opencv-python
+Pillow
+PyYAML
+tqdm
+h5py
+matplotlib
