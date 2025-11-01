@@ -104,7 +104,7 @@ def main():
         
         best_checkpoint_path = train_model(
             config=config,
-            mlflow_logger=mlflow_logger,
+            logger=mlflow_logger,
             device=device,
             verbose=True
         )

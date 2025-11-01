@@ -2,6 +2,8 @@ import mlflow
 from pathlib import Path
 from typing import Any, Dict,Optional
 import logging
+from datetime import datetime
+
 logger = logging.getLogger(__name__)
 
 
@@ -99,7 +101,6 @@ def setup_mlflow_logger(
             experiment_name=experiment_name,
             config=config,
             run_name=run_name,
-            tracking_uri=tracking_dir,
             run_id=run_id
         )
         

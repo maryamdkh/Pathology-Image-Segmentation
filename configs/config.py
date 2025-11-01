@@ -2,20 +2,19 @@
 import yaml
 from pathlib import Path
 from typing import Dict, Any
+from omegaconf import OmegaConf, DictConfig
 
 
-def load_config(config_path: str) -> Dict[str, Any]:
-    """Load configuration from YAML file."""
-    config_path = Path(config_path)
+def load_config(config_path: str) -> DictConfig:
+    """
+    Load and fully resolve configuration with environment variables.
+    """
+    # Load config
+    config = OmegaConf.load(config_path)
     
-    if not config_path.exists():
-        raise FileNotFoundError(f"Config file not found: {config_path}")
+    config_resolved = OmegaConf.to_container(config, resolve=True)
     
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-    
-    return config
-
+    return OmegaConf.create(config_resolved)
 
 def save_config(config: Dict[str, Any], save_path: Path):
     """Save configuration to YAML file."""
@@ -29,5 +28,6 @@ def setup_directories(config: Dict[str, Any]) -> None:
         config['paths']['log_dir'],
     ]
     
-    for directory in directories:
+    for directory_path in directories:
+        directory = Path(directory_path)
         directory.mkdir(parents=True, exist_ok=True)
