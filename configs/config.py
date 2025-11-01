@@ -25,12 +25,8 @@ def save_config(config: Dict[str, Any], save_path: Path):
 def setup_directories(config: Dict[str, Any]) -> None:
     
     directories = [
-        config.data_dir,
-        config.checkpoint_dir, 
-        config.log_dir,
-        config.processed_data,
-        config.experiments_base,
-        config.experiments_logs,
+        config['paths']['checkpoint_dir'], 
+        config['paths']['log_dir'],
     ]
     
     for directory in directories:
