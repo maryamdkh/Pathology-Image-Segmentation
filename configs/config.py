@@ -24,7 +24,7 @@ def save_config(config: Dict[str, Any], save_path: Path):
 def setup_directories(config: Dict[str, Any]) -> None:
     
     directories = [
-        config['paths']['checkpoint_dir'], 
+        config['training']['checkpoint_dir'], 
         config['paths']['log_dir'],
     ]
     
