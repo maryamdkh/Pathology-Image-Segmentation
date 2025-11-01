@@ -1,8 +1,7 @@
 import h5py
 from typing import Tuple, Dict, Any, List
 import numpy as np
-import math
-import cv2
+
 from sklearn.model_selection import train_test_split
 from data.datasets import CoCaHisDataset
 from data.transforms import get_train_transform, get_val_transform
@@ -55,29 +54,6 @@ def build_Cocahis_patient_split(h5_path: str, val_fraction: float = 0.2, seed: i
                                                     shuffle=True)
 
     return {"train_patients": train_patients, "val_patients": val_patients}
-
-def pad_to_multiple_of_32(img, **kwargs):
-    """
-    Pad image or mask so that height and width are divisible by 32.
-    Uses constant padding (value=0).
-    """
-    h, w = img.shape[:2]
-    new_h = math.ceil(h / 32) * 32
-    new_w = math.ceil(w / 32) * 32
-    pad_h = new_h - h
-    pad_w = new_w - w
-
-    # Pad evenly on bottom/right (no need to center-pad)
-    img = cv2.copyMakeBorder(
-        img,
-        top=0,
-        bottom=pad_h,
-        left=0,
-        right=pad_w,
-        borderType=cv2.BORDER_CONSTANT,
-        value=0
-    )
-    return img
 
 def load_cocahis_dataset(data_path: str) -> Dict[str, Any]:
     """

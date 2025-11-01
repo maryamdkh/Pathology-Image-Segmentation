@@ -4,8 +4,31 @@ import h5py
 import torch
 from torch.utils.data import Dataset
 
-from data.helper import pad_to_multiple_of_32
+import math
+import cv2
 
+def pad_to_multiple_of_32(img, **kwargs):
+    """
+    Pad image or mask so that height and width are divisible by 32.
+    Uses constant padding (value=0).
+    """
+    h, w = img.shape[:2]
+    new_h = math.ceil(h / 32) * 32
+    new_w = math.ceil(w / 32) * 32
+    pad_h = new_h - h
+    pad_w = new_w - w
+
+    # Pad evenly on bottom/right (no need to center-pad)
+    img = cv2.copyMakeBorder(
+        img,
+        top=0,
+        bottom=pad_h,
+        left=0,
+        right=pad_w,
+        borderType=cv2.BORDER_CONSTANT,
+        value=0
+    )
+    return img
 
 class CoCaHisDataset(Dataset):
 
