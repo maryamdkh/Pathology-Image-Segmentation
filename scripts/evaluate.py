@@ -20,6 +20,17 @@ from models.helper import build_seg_model
 from data.helper import create_dataloaders
 from evaluation.evaluator import evaluate_model_performance,generate_evaluation_visualizations
 
+def setup_logging(level=logging.INFO):
+    """Setup basic logging configuration."""
+    logging.basicConfig(
+        level=level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout),  # Log to console
+            logging.FileHandler('evaluation.log')  # Optional: also log to file
+        ]
+    )
+
 
 def parse_args():
     """Parse command line arguments."""
@@ -118,6 +129,8 @@ def main():
     try:
         # Load configuration
         config = load_config(args.config)
+        log_level = logging.INFO
+        setup_logging(level=log_level)
         logger = logging.getLogger(__name__)
         results_dir = Path(args.result_dir)
         
