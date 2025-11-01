@@ -1,5 +1,5 @@
 import torch
-from torch.data.utils import DataLoader
+from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from torch.cuda.amp import GradScaler, autocast
 

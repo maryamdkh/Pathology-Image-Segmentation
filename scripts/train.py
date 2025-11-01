@@ -14,9 +14,9 @@ from configs.config import load_config, setup_directories
 from utils.logging import setup_mlflow_logger
 from training.trainer import train_model
 
-# Add project root to path
-project_root = Path(__file__).parent
-sys.path.append(str(project_root))
+# Add project root to Python path
+project_root = Path(__file__).parent.parent  # Goes up two levels from scripts/train.py
+sys.path.insert(0, str(project_root))
 
 def parse_args():
     """Parse command line arguments."""
