@@ -1,5 +1,4 @@
 segmentation-models-pytorch
-albumentations==1.4.7
 timm
 GPUtil
 mlflow
@@ -12,3 +11,4 @@ PyYAML
 tqdm
 h5py
 matplotlib
+albumentations
