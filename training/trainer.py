@@ -12,7 +12,7 @@ from training.models import build_seg_model
 from utils.utils import check_system_resources
 from training.losses import LossFactory
 
-def train_one_epoch(model: torch.Module, dataloader: DataLoader, optimizer,criterion, device, scaler: GradScaler = None):
+def train_one_epoch(model: torch.nn.Module, dataloader: DataLoader, optimizer,criterion, device, scaler: GradScaler = None):
 
     model.train()
     running_loss = 0.0
@@ -54,7 +54,7 @@ def train_one_epoch(model: torch.Module, dataloader: DataLoader, optimizer,crite
 
     return running_loss / n_batches, running_dice / n_batches
 
-def validate_one_epoch(model: torch.Module, dataloader: DataLoader,criterion, device):
+def validate_one_epoch(model: torch.nn.Module, dataloader: DataLoader,criterion, device):
     model.eval()
     running_loss = 0.0
     running_dice = 0.0

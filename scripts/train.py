@@ -53,7 +53,7 @@ def setup_training(config: Dict[str, Any], experiment_name: str, run_id: Optiona
     """Setup all components for training."""
     
     # Setup directories
-    setup_directories()
+    setup_directories(config)
     
     # Setup device
     device = get_device(prefer=config["training"].get("device", "auto"))
