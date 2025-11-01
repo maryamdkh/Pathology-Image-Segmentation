@@ -156,7 +156,7 @@ def main():
         )
         
         # Log metrics to MLflow
-        mlflow_logger.log_metrics(evaluation_report)
+        mlflow_logger.log_metrics(evaluation_report["aggregate_metrics"])
 
         # Print summary to console
         logger.info("📊 Evaluation Results Summary:")
