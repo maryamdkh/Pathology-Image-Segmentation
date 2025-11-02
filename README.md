@@ -19,13 +19,6 @@ This project provides a robust pipeline for pathology image segmentation using U
 - **Multi-Dataset Ready**: Support for both public and private pathology datasets
 - **Extensible Design**: Easy adaptation to different cancer types and datasets
 
-## Architecture
-UNet++ with ResNet101 Backbone
-├── Encoder: ResNet101 (ImageNet pretrained)
-├── Decoder: UNet++ with nested skip connections
-├── Loss: Combined Dice + Focal Loss
-└── Optimizer: AdamW with Cosine Annealing
-
 
 ## 📊 Supported Datasets
 
