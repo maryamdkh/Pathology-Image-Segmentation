@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 class EarlyStopping:
-    def __init__(self, patience=15, min_delta=1e-4, mode='max', restore_best=True, verbose=True):
+    def __init__(self, patience=15, min_delta=1e-4, mode='max',best_score =None, restore_best=True, verbose=True):
         """
         Early stopping handler
         
@@ -12,6 +12,7 @@ class EarlyStopping:
             patience: How many epochs to wait after last improvement
             min_delta: Minimum change to qualify as improvement
             mode: 'max' for metrics where higher is better, 'min' for loss
+            best_score: best_score if available
             restore_best: Whether to restore best weights when stopping
             verbose: Whether to print messages
         """
@@ -22,7 +23,7 @@ class EarlyStopping:
         self.verbose = verbose
         
         self.counter = 0
-        self.best_score = None
+        self.best_score = best_score
         self.early_stop = False
         self.best_epoch = 0
         

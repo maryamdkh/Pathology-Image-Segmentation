@@ -150,13 +150,7 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     criterion = LossFactory(config)
     accumulation_steps = config["training"].get("gradient_accumulation_steps", 1)
 
-    # Early stopping setup
-    early_stopping = EarlyStopping(
-        patience=config["training"].get("early_stopping_patience", 15),
-        min_delta=config["training"].get("early_stopping_delta", 1e-4),
-        mode='max',  # For dice score (higher is better)
-        verbose=True
-    )
+    
 
     # -------------------------------------------------------------------------
     # 4. Resume Checkpoint (if any)
@@ -164,6 +158,15 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     start_epoch, best_val_dice = resume_checkpoint(
         model, optimizer, scheduler, scaler,
         config["model"].get("checkpoint_path"), device
+    )
+
+    # Early stopping setup
+    early_stopping = EarlyStopping(
+        patience=config["training"].get("early_stopping_patience", 15),
+        min_delta=config["training"].get("early_stopping_delta", 1e-4),
+        mode='max',  # For dice score (higher is better)
+        best_score = best_val_dice,
+        verbose=True
     )
 
     # -------------------------------------------------------------------------
