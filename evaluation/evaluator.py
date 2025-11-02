@@ -7,12 +7,82 @@ from typing import Dict, Any, List
 from pathlib import Path
 import json
 import logging
+import numpy as np
 
 from evaluation.metrics_calculator import calculate_detailed_segmentation_report
+from training.metrics import iou_coeff, dice_coeff, precision_recall
 from evaluation.visualizer import visualize_prediction_comparison, prepare_image_for_visualization, prepare_mask_for_visualization
 
 logger = logging.getLogger(__name__)
 
+def find_optimal_threshold_comprehensive(model, val_loader, device):
+    """
+    Find optimal threshold using multiple metrics
+    """
+    thresholds = np.linspace(0.1, 0.9, 50)
+    best_threshold = 0.5
+    best_metric = 0
+    
+    model.eval()
+    
+    results = []
+    
+    for thresh in thresholds:
+        ious = []
+        dices = []
+        precisions = []
+        recalls = []
+        
+        for batch in val_loader:
+            images = batch["image"].to(device)
+            masks = batch["mask"].to(device).float()
+            
+            if masks.ndim == 3:
+                masks = masks.unsqueeze(1)
+            
+            with torch.no_grad():
+                preds = torch.sigmoid(model(images))
+                preds_bin = (preds > thresh).float()
+                
+                # Calculate multiple metrics
+                iou = iou_coeff(preds_bin, masks)
+                dice = dice_coeff(preds_bin, masks)
+                precision, recall = precision_recall(preds_bin, masks)
+                
+                ious.append(iou.item())
+                dices.append(dice.item())
+                precisions.append(precision)
+                recalls.append(recall)
+        
+        mean_iou = np.mean(ious)
+        mean_dice = np.mean(dices)
+        mean_precision = np.mean(precisions)
+        mean_recall = np.mean(recalls)
+        mean_f1 = 2 * (mean_precision * mean_recall) / (mean_precision + mean_recall + 1e-8)
+        
+        # You can choose which metric to optimize
+        current_metric = mean_iou  # or mean_f1, or mean_dice
+        
+        results.append({
+            'threshold': thresh,
+            'iou': mean_iou,
+            'dice': mean_dice,
+            'precision': mean_precision,
+            'recall': mean_recall,
+            'f1': mean_f1
+        })
+        
+        if current_metric > best_metric:
+            best_metric = current_metric
+            best_threshold = thresh
+    
+    # Print comprehensive results
+    print(f"\n🎯 Optimal threshold: {best_threshold:.3f}")
+    best_result = [r for r in results if r['threshold'] == best_threshold][0]
+    print(f"IoU: {best_result['iou']:.4f}, Dice: {best_result['dice']:.4f}")
+    print(f"Precision: {best_result['precision']:.4f}, Recall: {best_result['recall']:.4f}")
+    
+    return best_threshold, results
 
 def evaluate_model_performance(
     model: torch.nn.Module,

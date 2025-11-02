@@ -19,3 +19,20 @@ def dice_coeff(pred: torch.Tensor, target: torch.Tensor, eps=1e-6):
     union = pred.sum(dim=1) + target.sum(dim=1)
     dice = (2.0 * intersection + eps) / (union + eps)
     return dice.mean()
+
+def iou_coeff(pred, target):
+    """Intersection over Union"""
+    intersection = (pred * target).sum()
+    union = pred.sum() + target.sum() - intersection
+    return (intersection + 1e-8) / (union + 1e-8)
+
+def precision_recall(pred, target):
+    """Precision and Recall calculation"""
+    tp = (pred * target).sum()
+    fp = (pred * (1 - target)).sum()
+    fn = ((1 - pred) * target).sum()
+    
+    precision = tp / (tp + fp + 1e-8)
+    recall = tp / (tp + fn + 1e-8)
+    
+    return precision.item(), recall.item()

@@ -10,6 +10,8 @@ dataset:
   tile_size: 512                # Tile size (if tiling is requested)
   overlap: 64                   # Overlap between tiles
   val_fraction: 0.2             # Fraction of data for validation
+  augmentation:
+    strength: "medium"  # medium, strong
 
 # =========================
 # Modeling configuration
@@ -26,29 +28,35 @@ model:
 # Loss function
 # =========================
 loss:
-  type: "single"                # "single" or "combined"
+  type: "combined"                # "single" or "combined"
   primary: "dice"               # used if single or combined
-  secondary: "bce"              # only used if combined #"bce" , "focal"
-  weights: [0.7, 0.3]           # weight for [primary, secondary]
+  secondary: "focal"              # only used if combined #"bce" , "focal"
+  weights: [0.6, 0.4]           # weight for [primary, secondary]
   mode: "binary"                # dice mode
-  smooth: 1.0e-05
+  smooth: 1.0
   focal_gamma: 2.0              # used only if focal
+  focal_alpha: 0.8
 
 # =========================
 # Optimization / Scheduler
 # =========================
 training:
-  optimizer: "Adam"              # e.g., Adam, SGD, RMSprop
-  scheduler: "ReduceLROnPlateau" # e.g., CosineAnnealingLR, StepLR, etc.
+  optimizer: "AdamW"              # e.g., AdamW, Adam, SGD, RMSprop
+  scheduler: "CosineAnnealingWarmRestartsLR" # e.g.,ReduceLROnPlateau, CosineAnnealingLR, StepLR, etc.
   weight_decay: 1.0e-05
   scaler: true                   # Whether to use GradScaler (for mixed precision)
   batch_size: 8
-  num_epochs: 40
-  learning_rate: 1.0e-05
+  num_epochs: 100
+  learning_rate: 2.0e-04 
+  early_stopping_patience: 15
+  early_stopping_delta: 1e-4
+  monitor_metric: "val_dice" 
+  gradient_accumulation_steps: 4
   use_amp: true                  # Use automatic mixed precision
   seed: 42
   device: "auto"
   checkpoint_dir: ${paths.project_root}/checkpoints
+  
 
 # =========================
 # Paths

@@ -19,7 +19,8 @@ class LossFactory:
         elif name == "focal":
             return smp.losses.FocalLoss(
                 mode=self.config.get("mode", "binary"),
-                gamma=self.config.get("focal_gamma", 2.0)
+                gamma=self.config.get("focal_gamma", 2.0),
+                alpha=self.config.get("focal_alpha", 0.8)
             )
         else:
             raise ValueError(f"Unknown loss name: {name}")
