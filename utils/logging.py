@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict,Optional
 import logging
 from datetime import datetime
+from mlflow.tracking import MlflowClient
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,50 @@ class MLflowLogger:
         mlflow.end_run()
 
 
+def explore_mlflow_runs(mlruns_path, experiment_name=None):
+    """
+    Explore and list all MLflow runs from a specified MLflow tracking directory.
+    
+    Args:
+        mlruns_path (str): Path to the MLflow runs directory (e.g., "mlruns", "/path/to/mlruns")
+        experiment_name (str, optional): Specific experiment name to filter by. Defaults to None.
+    """
+    # Set the tracking URI to the provided mlruns path
+    mlflow.set_tracking_uri(mlruns_path)
+    
+    client = MlflowClient()
+
+    # Get experiments
+    experiments = client.search_experiments()
+    print("🔍 Available Experiments:")
+    print("=" * 80)
+
+    for exp in experiments:
+        # If experiment_name is specified, skip other experiments
+        if experiment_name and exp.name != experiment_name:
+            continue
+            
+        print(f"📂 Experiment: {exp.name} (ID: {exp.experiment_id})")
+
+        # Get runs for this experiment
+        runs = client.search_runs(experiment_ids=[exp.experiment_id])
+
+        if runs:
+            print(f"   📊 Runs in '{exp.name}':")
+            for run in runs:
+                status = run.info.status
+                start_time = datetime.fromtimestamp(run.info.start_time / 1000).strftime('%Y-%m-%d %H:%M:%S') if run.info.start_time else "N/A"
+
+                print(f"      🆔 Run ID: {run.info.run_id}")
+                print(f"         Name: {run.data.tags.get('mlflow.runName', 'Unnamed')}")
+                print(f"         Status: {status}")
+                print(f"         Start Time: {start_time}")
+                print(f"         Metrics: {list(run.data.metrics.keys())[:3]}...")  # Show first 3 metrics
+                print(f"         Parameters: {list(run.data.params.keys())[:3]}...")  # Show first 3 params
+                print("         " + "-" * 50)
+        else:
+            print(f"   No runs in this experiment")
+        print()
 
 def setup_mlflow_logger(
     experiment_name: str,
