@@ -8,7 +8,7 @@ def get_medium_augmentation():
     Conservative approach that preserves diagnostic color information
     """
     return A.Compose([
-        # Spatial transformations (preserve color relationships)
+        # Spatial transformations 
         A.OneOf([
             A.Rotate(limit=20, p=0.7),
             A.Affine(
@@ -27,7 +27,6 @@ def get_medium_augmentation():
         A.ElasticTransform(
             alpha=25,        # Conservative
             sigma=5,
-            alpha_affine=8,
             p=0.3
         ),
         
@@ -60,22 +59,18 @@ def get_medium_augmentation():
         
         # Non-color destructive augmentations
         A.OneOf([
-            A.GaussNoise(var_limit=(5.0, 12.0), p=0.3),
-            A.GaussianBlur(blur_limit=(3, 4), p=0.2),
-            A.MotionBlur(blur_limit=(3, 4), p=0.2),
+            A.GaussNoise(std_range=(0.1, 0.2), p=0.4),
+            A.GaussianBlur(blur_limit=(3, 5), p=0.2),
+            A.MotionBlur(blur_limit=(3, 5), p=0.2),
         ], p=0.4),
         
         # Safe mask-based augmentations
         A.CoarseDropout(
-            max_holes=4,
-            max_height=16,
-            max_width=16,
-            min_holes=1,
-            min_height=8,
-            min_width=8,
-            fill_value=0,        # ImageNet mean for images
-            mask_fill_value=0,   # Background for masks
-            p=0.2
+            num_holes_range=(2, 4),
+            hole_height_range=(10, 20),
+            hole_width_range=(10, 20),
+            fill="random_uniform",
+            p=0.4
         ),
         
         # Normalization
@@ -122,7 +117,6 @@ def get_strong_augmentation():
             A.ElasticTransform(
                 alpha=50,
                 sigma=7,
-                alpha_affine=15,
                 p=0.4
             ),
             A.GridDistortion(
@@ -156,7 +150,7 @@ def get_strong_augmentation():
         
         # More aggressive non-color augmentations
         A.OneOf([
-            A.GaussNoise(var_limit=(10.0, 25.0), p=0.4),
+            A.GaussNoise(std_range=(0.1, 0.2), p=0.4), # 10-20% of max value
             A.GaussianBlur(blur_limit=(3, 7), p=0.3),
             A.MotionBlur(blur_limit=(3, 7), p=0.3),
             A.MedianBlur(blur_limit=3, p=0.2),
@@ -170,15 +164,11 @@ def get_strong_augmentation():
         # Strong mask-based augmentations
         A.OneOf([
             A.CoarseDropout(
-                max_holes=8,
-                max_height=32,
-                max_width=32,
-                min_holes=2,
-                min_height=16,
-                min_width=16,
-                fill_value=0,
-                mask_fill_value=0,
-                p=0.4
+                num_holes_range=(3, 6),
+                hole_height_range=(10, 20),
+                hole_width_range=(10, 20),
+                fill="random_uniform",
+                p=0.8
             ),
             A.RandomGridShuffle(grid=(3, 3), p=0.2),
             A.RandomSizedBBoxSafeCrop(
