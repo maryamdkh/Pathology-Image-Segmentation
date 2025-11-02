@@ -4,7 +4,7 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 from data.datasets import CoCaHisDataset
-from data.transforms import get_train_transform, get_val_transform
+from data.transforms import get_medium_augmentation, get_val_test_transform, get_strong_augmentation
 from torch.utils.data import DataLoader
 
 def create_dataloaders(config,splits):
@@ -15,9 +15,9 @@ def create_dataloaders(config,splits):
         seed=config["training"]["seed"]
     )
     transform_mapping = {
-        "train": get_train_transform(),
-        "val": get_val_transform(),
-        "test": None
+        "train": get_medium_augmentation() if ds_cfg['augmentation']['strength'] == "medium" else get_strong_augmentation(),
+        "val": get_val_test_transform(),
+        "test": get_val_test_transform()
     }
     train_loaders = {}
     for split in splits:

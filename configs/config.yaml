@@ -9,7 +9,7 @@ dataset:
   val_transform: null           # Replace with serialized transform
   tile_size: 512                # Tile size (if tiling is requested)
   overlap: 64                   # Overlap between tiles
-  val_fraction: 0.2             # Fraction of data for validation
+  val_fraction: 0.1             # Fraction of data for validation
   augmentation:
     strength: "medium"  # medium, strong
 
