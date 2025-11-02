@@ -22,7 +22,7 @@ model:
   encoder_weights: "imagenet"   # Pretrained weights or None
   in_channels: 3
   classes: 1
-  checkpoint_path: null
+  checkpoint_path: null #${paths.project_root}/checkpoints/best_model.pth
 
 # =========================
 # Loss function
