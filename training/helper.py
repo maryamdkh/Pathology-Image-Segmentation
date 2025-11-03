@@ -105,6 +105,7 @@ def build_scheduler(optimizer, config):
 def resume_checkpoint(model, optimizer, scheduler, scaler, checkpoint_path, device):
     start_epoch = 1
     best_val_dice = -1.0
+    patient_split = None
     if checkpoint_path and Path(checkpoint_path).exists():
         print(f"Resuming from checkpoint: {checkpoint_path}")
         ckpt = torch.load(checkpoint_path, map_location=device)
