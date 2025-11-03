@@ -29,10 +29,10 @@ class EarlyStopping:
         
         if mode == 'max':
             self.compare = lambda x, y: (x - y) > min_delta
-            self.best_score = -float('inf')
+            self.best_score = -float('inf') if self.best_score == None else self.best_score
         else:  # mode == 'min'
             self.compare = lambda x, y: (y - x) > min_delta
-            self.best_score = float('inf')
+            self.best_score = float('inf') if self.best_score == None else self.best_score
             
     def __call__(self, score, model, epoch):
         if self.mode == 'max':
