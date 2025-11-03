@@ -119,10 +119,12 @@ def resume_checkpoint(model, optimizer, scheduler, scaler, checkpoint_path, devi
             start_epoch = ckpt["epoch"] + 1
         if "val_dice" in ckpt:
             best_val_dice = ckpt["val_dice"]
+        if "patient_split" in ckpt:
+            patient_split = ckpt["patient_split"]
         print(f"Resumed from epoch {start_epoch - 1} | Best val dice: {best_val_dice:.4f}")
     else:
         print("Starting new training run.")
-    return start_epoch, best_val_dice
+    return start_epoch, best_val_dice, patient_split
 
 
 def save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_dice, patient_split, path):
@@ -134,7 +136,7 @@ def save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_dice, patien
         "scaler_state": scaler.state_dict() if scaler else None,
         "val_dice": val_dice,
         "patient_split": {
-            "train": patient_split["train_patients"].tolist(),
-            "val": patient_split["val_patients"].tolist()
+            "train_patients": patient_split["train_patients"].tolist(),
+            "val_patients": patient_split["val_patients"].tolist()
         },
     }, path)

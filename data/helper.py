@@ -7,13 +7,15 @@ from data.datasets import CoCaHisDataset
 from data.transforms import get_medium_augmentation, get_val_test_transform, get_strong_augmentation
 from torch.utils.data import DataLoader
 
-def create_dataloaders(config,splits):
+def create_dataloaders(config,splits,patient_split=None):
     ds_cfg = config["dataset"]
-    patient_split = build_Cocahis_patient_split(
-        h5_path=ds_cfg['path'],
-        val_fraction=ds_cfg["val_fraction"],
-        seed=config["training"]["seed"]
-    )
+
+    if patient_split == None:
+        patient_split = build_Cocahis_patient_split(
+            h5_path=ds_cfg['path'],
+            val_fraction=ds_cfg["val_fraction"],
+            seed=config["training"]["seed"]
+        )
     transform_mapping = {
         "train": get_medium_augmentation() if ds_cfg['augmentation']['strength'] == "medium" else get_strong_augmentation(),
         "val": get_val_test_transform(),

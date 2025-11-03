@@ -125,19 +125,15 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     """
 
     # -------------------------------------------------------------------------
-    # 1. Setup & Reproducibility
+    # Setup & Reproducibility
     # -------------------------------------------------------------------------
     set_seed(config["training"].get("seed", 42))
     device = get_device(config["training"].get("device", 'auto'))
     best_checkpoint_path = config["training"]["checkpoint_dir"] + "/best_model.pth"
 
-    # -------------------------------------------------------------------------
-    # 2. Data Preparation
-    # -------------------------------------------------------------------------
-    patient_split, dataloaders = create_dataloaders(config=config, splits=['train','val'])
 
     # -------------------------------------------------------------------------
-    # 3. Model, Optimizer, Scheduler
+    # Model, Optimizer, Scheduler
     # -------------------------------------------------------------------------
     model = build_seg_model(config, device=device)
 
@@ -150,15 +146,19 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     criterion = LossFactory(config)
     accumulation_steps = config["training"].get("gradient_accumulation_steps", 1)
 
-    
 
     # -------------------------------------------------------------------------
-    # 4. Resume Checkpoint (if any)
+    # Resume Checkpoint (if any)
     # -------------------------------------------------------------------------
-    start_epoch, best_val_dice = resume_checkpoint(
+    start_epoch, best_val_dice, patient_split = resume_checkpoint(
         model, optimizer, scheduler, scaler,
         config["model"].get("checkpoint_path"), device
     )
+
+    # -------------------------------------------------------------------------
+    # Data Preparation
+    # -------------------------------------------------------------------------
+    patient_split, dataloaders = create_dataloaders(config=config, splits=['train','val'],patient_split=patient_split)
 
     # Early stopping setup
     early_stopping = EarlyStopping(
