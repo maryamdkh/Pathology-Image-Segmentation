@@ -117,7 +117,7 @@ def main():
         # Run training
         logger.info("Starting model training...")
         
-        best_checkpoint_path = train_model(
+        best_checkpoint_path,train_history = train_model(
             config=config,
             logger=mlflow_logger,
             device=device,
