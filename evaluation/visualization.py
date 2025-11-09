@@ -26,7 +26,7 @@ def generate_evaluation_visualizations(
     print("🔍 Collecting tile predictions for reconstruction...")
     
     with torch.no_grad():
-        for batch in dataloader:
+        for batch_idx, batch in enumerate(dataloader):
             images = batch["image"].to(device)
             masks = batch["mask"]
             patient_nums = batch["patient_num"]
@@ -35,14 +35,21 @@ def generate_evaluation_visualizations(
             tile_coords = batch["tile_coords"]
             original_dims = batch["original_dims"]
             
+            # Get batch size
+            batch_size = len(images)
+            
             # Get predictions
             logits = model(images)
             preds = torch.sigmoid(logits) > threshold
             preds = preds.cpu().numpy().astype(np.uint8)
             
             # Store each tile with its metadata
-            for i in range(len(images)):
+            for i in range(batch_size):
                 img_id = f"{patient_nums[i]}_{image_nums[i]}_{image_types[i]}"
+                
+                # Safely access list elements
+                tile_coord = tile_coords[i] if i < len(tile_coords) else None
+                original_dim = original_dims[i] if i < len(original_dims) else None
                 
                 tile_info = {
                     'tile_img': images[i].cpu().numpy().transpose(1, 2, 0),
@@ -51,8 +58,8 @@ def generate_evaluation_visualizations(
                     'patient_num': patient_nums[i],
                     'image_num': image_nums[i],
                     'image_type': image_types[i],
-                    'tile_coords': tile_coords[i],
-                    'original_dims': original_dims[i]
+                    'tile_coords': tile_coord,
+                    'original_dims': original_dim
                 }
                 
                 image_tiles[img_id].append(tile_info)

@@ -12,13 +12,13 @@ dataset:
   val_fraction: 0.1             # Fraction of data for validation
   augmentation:
     strength: "medium"  # medium, strong
-    
+
 # =========================
 # Modeling configuration
 # =========================
 model:
   # Inference mode: "single" or "majority_vote"
-  inference_mode: "single"
+  inference_mode: "majority_vote"
   
   # Single model configuration (used when inference_mode: "single")
   single_model:

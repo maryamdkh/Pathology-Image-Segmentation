@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Optional, Dict, List, Union
+from typing import Optional, Dict, List, Union, Tuple
 import h5py
 import torch
 from torch.utils.data import Dataset
@@ -78,7 +78,10 @@ class CoCaHisDataset(Dataset):
         self.overlap = overlap
 
         # We'll store all samples from all requested image types
-        self.samples = []  # List of tuples: (image_type, index_in_original_dataset, tile_coords)
+        self.samples = []  # List of tuples: (image_type, index_in_original_dataset, tile_coords, original_dims)
+        
+        # Create mapping from image index to dataset indices for efficient lookup
+        self.image_index_to_dataset_indices = {}
         
         with h5py.File(self.h5_path, 'r') as f:
             self.train_test_split = f["HE"].attrs["train_test_split"]
@@ -111,27 +114,42 @@ class CoCaHisDataset(Dataset):
                         img = np.array(f[f"HE/{img_type}"][idx])
                         H, W = pad_to_multiple_of_32(img).shape[:2]
                         step = self.tile_size - self.overlap
+                        
+                        # Store dataset indices for this image
+                        image_key = (img_type, idx)
+                        self.image_index_to_dataset_indices[image_key] = []
+                        
                         for y in range(0, H, step):
                             for x in range(0, W, step):
                                 y1 = min(y + self.tile_size, H)
                                 x1 = min(x + self.tile_size, W)
                                 y0 = y1 - self.tile_size
                                 x0 = x1 - self.tile_size
-                                self.samples.append((img_type, idx, (y0, y1, x0, x1), (H, W)))  # Added original dimensions
+                                
+                                dataset_idx = len(self.samples)
+                                self.samples.append((img_type, idx, (y0, y1, x0, x1), (H, W)))
+                                self.image_index_to_dataset_indices[image_key].append(dataset_idx)
                 else:
                     # Without tiling: add each image directly
                     for idx in base_indices:
-                        self.samples.append((img_type, idx, None, (H, W)))  # Added original dimensions
+                        img = np.array(f[f"HE/{img_type}"][idx])
+                        H, W = pad_to_multiple_of_32(img).shape[:2]
+                        
+                        dataset_idx = len(self.samples)
+                        self.samples.append((img_type, idx, None, (H, W)))
+                        
+                        # Store dataset index for this image
+                        image_key = (img_type, idx)
+                        self.image_index_to_dataset_indices[image_key] = [dataset_idx]
 
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
-
         if self.tile_size is not None:
-            img_type, img_idx, tile_coords, original_dims = self.samples[idx]  # Unpack new tuple
+            img_type, img_idx, tile_coords, original_dims = self.samples[idx]
             y0, y1, x0, x1 = tile_coords
-            H, W = original_dims  # Get original dimensions
+            H, W = original_dims
         else:
             img_type, img_idx, tile_coords, original_dims = self.samples[idx]
             H, W = original_dims
@@ -174,11 +192,51 @@ class CoCaHisDataset(Dataset):
             "patient_num": patient_num, 
             "image_num": image_num,
             "image_type": img_type,
-            "tile_coords": tile_coords,  # Add tile coordinates
-            "original_dims": (H, W)      # Add original dimensions
+            "tile_coords": tile_coords,
+            "original_dims": (H, W)
         }
 
-    
+    def get_image_tiles(self, image_type: str, image_idx: int) -> List[Dict]:
+        """
+        Get all tiles corresponding to a specific image index and image type.
+        
+        Args:
+            image_type (str): The image type ("raw", "sn1", or "sn2")
+            image_idx (int): The index of the image in the original dataset
+            
+        Returns:
+            List[Dict]: A list of dictionaries, each containing the same items as __getitem__
+                       for each tile belonging to the specified image
+        """
+        image_key = (image_type, image_idx)
+        
+        if image_key not in self.image_index_to_dataset_indices:
+            raise ValueError(f"No tiles found for image_type '{image_type}' and image_idx {image_idx}")
+        
+        dataset_indices = self.image_index_to_dataset_indices[image_key]
+        tiles = []
+        
+        for dataset_idx in dataset_indices:
+            tile_data = self[dataset_idx]  # Use existing __getitem__ method
+            tiles.append(tile_data)
+            
+        return tiles
+
+    def get_available_image_indices(self, image_type: str = None) -> List[Tuple[str, int]]:
+        """
+        Get all available image indices in the dataset.
+        
+        Args:
+            image_type (str, optional): Filter by specific image type. If None, returns all.
+            
+        Returns:
+            List[Tuple[str, int]]: List of (image_type, image_idx) tuples
+        """
+        if image_type is None:
+            return list(self.image_index_to_dataset_indices.keys())
+        else:
+            return [(img_type, idx) for img_type, idx in self.image_index_to_dataset_indices.keys() 
+                    if img_type == image_type]
 
     def get_dataset_stats(self):
         """Get statistics about the dataset composition."""
@@ -187,6 +245,14 @@ class CoCaHisDataset(Dataset):
             type_count = sum(1 for sample in self.samples if sample[0] == img_type)
             stats[img_type] = type_count
         stats["total"] = len(self.samples)
+        
+        # Add image-level statistics
+        stats["unique_images"] = len(self.image_index_to_dataset_indices)
+        stats["tiles_per_image"] = {}
+        for image_key, indices in self.image_index_to_dataset_indices.items():
+            img_type, img_idx = image_key
+            if img_type not in stats["tiles_per_image"]:
+                stats["tiles_per_image"][img_type] = []
+            stats["tiles_per_image"][img_type].append(len(indices))
+            
         return stats
-    
-

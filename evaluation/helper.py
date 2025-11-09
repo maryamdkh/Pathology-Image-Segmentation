@@ -59,7 +59,7 @@ def find_optimal_threshold_comprehensive(model, val_loader, device):
         mean_f1 = 2 * (mean_precision * mean_recall) / (mean_precision + mean_recall + 1e-8)
         
         # You can choose which metric to optimize
-        current_metric = mean_dice   # or mean_f1, or mean_iou
+        current_metric = mean_f1   # or mean_f1, or mean_iou
         
         results.append({
             'threshold': thresh,
