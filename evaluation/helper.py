@@ -17,7 +17,7 @@ def find_optimal_threshold_comprehensive(model, val_loader, device):
     """
     Find optimal threshold using multiple metrics
     """
-    thresholds = np.linspace(0.1, 0.9, 50)
+    thresholds = np.linspace(0.3, 0.8, 5)
     best_threshold = 0.5
     best_metric = 0
     
