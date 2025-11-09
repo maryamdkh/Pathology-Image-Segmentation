@@ -1,193 +1,143 @@
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from collections import defaultdict
+import numpy as np
+import torch
+import h5py
 
-def generate_evaluation_visualizations(
-    model: torch.nn.Module,
-    dataloader: torch.utils.data.DataLoader,
-    device: torch.device,
-    output_dir: Path,
-    num_samples: int = 5,
-    threshold: float = 0.5
-):
+def visualize_image_with_prediction(dataset, model, image_type: str, image_idx: int, alpha: float = 0.6, device: str = 'cuda'):
     """
-    Generate visualization comparing ground truth vs predicted masks.
-    Properly reconstructs full images from tiles using tile coordinates.
+    Reconstruct and visualize an image with both real and predicted segmentation overlays.
+    
+    Args:
+        dataset: CoCaHisDataset instance
+        model: PyTorch model for prediction
+        image_type: Image type ("raw", "sn1", "sn2")
+        image_idx: Index of the image in original dataset
+        alpha: Transparency for segmentation overlay
+        device: Device to run model on ('cuda' or 'cpu')
     """
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Get all tiles for the image
+    tiles = dataset.get_image_tiles(image_type, image_idx)
+    
+    if not tiles:
+        print(f"No tiles found for image_type '{image_type}', image_idx {image_idx}")
+        return
+    
+    # Get original dimensions from first tile
+    H, W = tiles[0]["original_dims"]
+    
+    # Get original unpadded dimensions by loading the image once
+    with h5py.File(dataset.h5_path, 'r') as f:
+        original_img = np.array(f[f"HE/{image_type}"][image_idx])
+        original_h, original_w = original_img.shape[:2]
+    
+    # Initialize reconstruction arrays
+    image_recon = np.zeros((H, W, 3), dtype=np.float32)
+    mask_recon = np.zeros((H, W), dtype=np.float32)
+    pred_recon = np.zeros((H, W), dtype=np.float32)
+    count_recon = np.zeros((H, W), dtype=np.float32)
+    
     model.eval()
     
-    # Store tiles for each unique image
-    image_tiles = defaultdict(list)
-    
-    print("🔍 Collecting tile predictions for reconstruction...")
-    
+    # Reconstruct from tiles
     with torch.no_grad():
-        for batch_idx, batch in enumerate(dataloader):
-            images = batch["image"].to(device)
-            masks = batch["mask"]
-            patient_nums = batch["patient_num"]
-            image_nums = batch["image_num"]
-            image_types = batch["image_type"]
-            tile_coords = batch["tile_coords"]
-            original_dims = batch["original_dims"]
-            
-            # Get batch size
-            batch_size = len(images)
-            
-            # Get predictions
-            logits = model(images)
-            preds = torch.sigmoid(logits) > threshold
-            preds = preds.cpu().numpy().astype(np.uint8)
-            
-            # Store each tile with its metadata
-            for i in range(batch_size):
-                img_id = f"{patient_nums[i]}_{image_nums[i]}_{image_types[i]}"
+        for tile in tiles:
+            tile_coords = tile["tile_coords"]
+            if tile_coords is None:
+                # No tiling case - use the whole image
+                img_tensor = tile["image"].unsqueeze(0).to(device)  # [1,C,H,W]
                 
-                # Safely access list elements
-                tile_coord = tile_coords[i] if i < len(tile_coords) else None
-                original_dim = original_dims[i] if i < len(original_dims) else None
+                # Get prediction
+                pred = model(img_tensor)
+                if isinstance(pred, torch.Tensor):
+                    pred = torch.sigmoid(pred) if pred.dim() > 1 else pred
+                    pred_mask = (pred > 0.5).squeeze().cpu().numpy()
+                else:
+                    pred_mask = pred.squeeze()
                 
-                tile_info = {
-                    'tile_img': images[i].cpu().numpy().transpose(1, 2, 0),
-                    'tile_gt_mask': masks[i].numpy(),
-                    'tile_pred_mask': preds[i, 0],  # Remove channel dimension
-                    'patient_num': patient_nums[i],
-                    'image_num': image_nums[i],
-                    'image_type': image_types[i],
-                    'tile_coords': tile_coord,
-                    'original_dims': original_dim
-                }
+                # Convert to numpy
+                img = tile["image"].permute(1, 2, 0).numpy()
+                mask = tile["mask"].numpy()
                 
-                image_tiles[img_id].append(tile_info)
-    
-    # Reconstruct and visualize full images
-    print("🎨 Reconstructing full images from tiles...")
-    sample_count = 0
-    
-    for img_id, tiles in image_tiles.items():
-        if sample_count >= num_samples:
-            break
+                image_recon = img
+                mask_recon = mask
+                pred_recon = pred_mask
+                count_recon = np.ones((H, W))
+                break
             
-        # Reconstruct full image from tiles
-        reconstructed = reconstruct_from_tiles(tiles)
-        if reconstructed:
-            full_image, full_gt_mask, full_pred_mask, metadata = reconstructed
+            y0, y1, x0, x1 = tile_coords
             
-            # Create visualization
-            fig = create_comparison_visualization(
-                full_image, full_gt_mask, full_pred_mask, 
-                metadata['patient_num'], metadata['image_num'], metadata['image_type']
-            )
+            # Convert tensor to numpy for reconstruction
+            img_tile = tile["image"]
+            mask_tile = tile["mask"]
             
-            # Save figure
-            save_path = output_dir / f"sample_{sample_count+1}_{img_id}.png"
-            plt.savefig(save_path, bbox_inches='tight', dpi=150, facecolor='white')
-            plt.close(fig)
+            # Convert to numpy arrays
+            img_np = img_tile.permute(1, 2, 0).numpy() if isinstance(img_tile, torch.Tensor) else img_tile
+            mask_np = mask_tile.numpy() if isinstance(mask_tile, torch.Tensor) else mask_tile
             
-            print(f"✅ Saved visualization: {save_path}")
-            sample_count += 1
-
-def reconstruct_from_tiles(tiles: List[Dict]) -> Optional[Tuple]:
-    """
-    Reconstruct full image from tiles using actual tile coordinates.
-    
-    Args:
-        tiles: List of tile dictionaries with image data and coordinates
-        
-    Returns:
-        Tuple of (full_image, full_gt_mask, full_pred_mask, metadata) or None if reconstruction fails
-    """
-    try:
-        # Check if this is a single image (no tiling)
-        if tiles[0]['tile_coords'] is None:
-            # Single image - no reconstruction needed
-            tile = tiles[0]
-            full_image = (tile['tile_img'] * 255).astype(np.uint8)
-            full_gt_mask = tile['tile_gt_mask'].astype(np.uint8)
-            full_pred_mask = tile['tile_pred_mask'].astype(np.uint8)
-        else:
-            # Multiple tiles - reconstruct using coordinates
-            # Get original dimensions from first tile (all tiles should have same dimensions)
-            H, W = tiles[0]['original_dims']
+            # Get prediction for this tile
+            img_tensor = img_tile.unsqueeze(0) if not isinstance(img_tile, torch.Tensor) else img_tile.unsqueeze(0)
+            img_tensor = img_tensor.to(device)
+            pred = model(img_tensor)
             
-            # Create empty canvases for reconstruction (use original dimensions)
-            full_image = np.zeros((H, W, 3), dtype=np.uint8)
-            full_gt_mask = np.zeros((H, W), dtype=np.uint8)
-            full_pred_mask = np.zeros((H, W), dtype=np.uint8)
+            if isinstance(pred, torch.Tensor):
+                pred = torch.sigmoid(pred) if pred.dim() > 1 else pred
+                pred_mask = (pred > 0.5).squeeze().cpu().numpy()
+            else:
+                pred_mask = pred.squeeze()
             
-            # Place each tile in its correct position
-            for tile in tiles:
-                y0, y1, x0, x1 = tile['tile_coords']
-                
-                # Convert tile image back to uint8
-                tile_img = (tile['tile_img'] * 255).astype(np.uint8)
-                
-                # Get tile dimensions
-                tile_h, tile_w = tile_img.shape[:2]
-                
-                # Ensure we don't exceed original dimensions
-                y1 = min(y1, H)
-                x1 = min(x1, W)
-                
-                # Place tile in full image
-                full_image[y0:y1, x0:x1] = tile_img
-                full_gt_mask[y0:y1, x0:x1] = tile['tile_gt_mask'][:y1-y0, :x1-x0]
-                full_pred_mask[y0:y1, x0:x1] = tile['tile_pred_mask'][:y1-y0, :x1-x0]
-        
-        metadata = {
-            'patient_num': tiles[0]['patient_num'],
-            'image_num': tiles[0]['image_num'],
-            'image_type': tiles[0]['image_type'],
-            'num_tiles': len(tiles)
-        }
-        
-        return full_image, full_gt_mask, full_pred_mask, metadata
-        
-    except Exception as e:
-        print(f"⚠️ Tile reconstruction failed: {e}")
-        return None
-
-def create_comparison_visualization(
-    image: np.ndarray,
-    gt_mask: np.ndarray, 
-    pred_mask: np.ndarray,
-    patient_num: int,
-    image_num: int,
-    image_type: str
-):
-    """
-    Create a comparison visualization between ground truth and prediction.
+            # Add to reconstruction with averaging for overlap regions
+            image_recon[y0:y1, x0:x1] += img_np
+            mask_recon[y0:y1, x0:x1] += mask_np
+            pred_recon[y0:y1, x0:x1] += pred_mask
+            count_recon[y0:y1, x0:x1] += 1
     
-    Args:
-        image: Original image [H, W, 3]
-        gt_mask: Ground truth mask [H, W]
-        pred_mask: Predicted mask [H, W]
-        patient_num: Patient number
-        image_num: Image number
-        image_type: Type of image (raw/sn1/sn2)
-    """
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    # Average overlapping regions
+    valid_mask = count_recon > 0
+    image_recon[valid_mask] = image_recon[valid_mask] / count_recon[valid_mask][:, None]
+    mask_recon[valid_mask] = mask_recon[valid_mask] / count_recon[valid_mask]
+    pred_recon[valid_mask] = pred_recon[valid_mask] / count_recon[valid_mask]
     
-    # Original image
-    axes[0].imshow(image)
-    axes[0].set_title(f"Original Image\nPatient {patient_num}, Image {image_num}\nType: {image_type}")
-    axes[0].axis('off')
+    # Threshold the prediction after averaging
+    pred_recon = (pred_recon > 0.5).astype(np.float32)
     
-    # Ground truth mask overlay
-    axes[1].imshow(image)
-    axes[1].imshow(gt_mask, alpha=0.5, cmap='Reds')
-    axes[1].set_title("Ground Truth Mask")
-    axes[1].axis('off')
+    # Crop to original unpadded dimensions
+    image_recon = image_recon[:original_h, :original_w]
+    mask_recon = mask_recon[:original_h, :original_w]
+    pred_recon = pred_recon[:original_h, :original_w]
     
-    # Predicted mask overlay
-    axes[2].imshow(image)
-    axes[2].imshow(pred_mask, alpha=0.5, cmap='Reds')
-    axes[2].set_title("Predicted Mask")
-    axes[2].axis('off')
+    # Create visualization
+    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
     
+    # Row 1: Ground Truth
+    axes[0, 0].imshow(image_recon)
+    axes[0, 0].set_title('Original Image')
+    axes[0, 0].axis('off')
+    
+    axes[0, 1].imshow(mask_recon, cmap='Reds')
+    axes[0, 1].set_title('Ground Truth Mask')
+    axes[0, 1].axis('off')
+    
+    axes[0, 2].imshow(image_recon)
+    axes[0, 2].imshow(mask_recon, cmap='Reds', alpha=alpha)
+    axes[0, 2].set_title('GT Overlay')
+    axes[0, 2].axis('off')
+    
+    # Row 2: Predictions
+    axes[1, 0].imshow(image_recon)
+    axes[1, 0].set_title('Original Image')
+    axes[1, 0].axis('off')
+    
+    axes[1, 1].imshow(pred_recon, cmap='Reds')
+    axes[1, 1].set_title('Predicted Mask')
+    axes[1, 1].axis('off')
+    
+    axes[1, 2].imshow(image_recon)
+    axes[1, 2].imshow(pred_recon, cmap='Reds', alpha=alpha)
+    axes[1, 2].set_title('Prediction Overlay')
+    axes[1, 2].axis('off')
+    
+    plt.suptitle(f'Image: {image_type}, Index: {image_idx}, Size: {original_h}x{original_w}', fontsize=14)
     plt.tight_layout()
-    return fig
+    plt.show()
+    
+    return image_recon, mask_recon, pred_recon
