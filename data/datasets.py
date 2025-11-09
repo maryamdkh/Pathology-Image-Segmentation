@@ -1,9 +1,8 @@
 import numpy as np
-from typing import Optional, Dict
+from typing import Optional, Dict, List, Union
 import h5py
 import torch
 from torch.utils.data import Dataset
-
 import math
 import cv2
 
@@ -32,46 +31,63 @@ def pad_to_multiple_of_32(img, **kwargs):
 
 class CoCaHisDataset(Dataset):
 
-    def __init__(self, h5_path: str, image_type: str="raw", split: str="train",
-                 transform=None, patient_split: Optional[Dict[str, np.ndarray]]=None,
-                 tile_size: int=None, overlap: int=0):
+    def __init__(self, h5_path: str, image_type: Union[str, List[str]] = "raw", split: str = "train",
+                 transform=None, patient_split: Optional[Dict[str, np.ndarray]] = None,
+                 tile_size: int = None, overlap: int = 0):
         """
-          PyTorch custom dataset for CoCaHis HDF5 structure.
+        PyTorch custom dataset for CoCaHis HDF5 structure.
 
-          Args:
-              h5_path (str): Path to CoCaHis.hdf5
-              image_type (str): One of ["raw", "sn1", "sn2"]
-              split (str): "train" or "test"
-              transform (callable, optional): Optional transform to be applied on images
-              patient_split (dict, optional): Dict with keys 'train_patients' and 'val_patients'.
-              tile_size (int): size of the tiles if tiling is requested
-              overlap (int): overlap between tiles is tiling is requested
+        Args:
+            h5_path (str): Path to CoCaHis.hdf5
+            image_type (str or List[str]): One of ["raw", "sn1", "sn2"] or combination like ["raw", "sn1", "sn2"]
+            split (str): "train", "val", or "test"
+            transform (callable, optional): Optional transform to be applied on images
+            patient_split (dict, optional): Dict with keys 'train_patients' and 'val_patients'
+            tile_size (int): size of the tiles if tiling is requested
+            overlap (int): overlap between tiles if tiling is requested
 
-
-          Returns a dict with keys:
-              image: Tensor float32 [C,H,W] in [0,1]
-              mask:  Tensor long or float [H,W] (0/1)
-              patient_num: int
-              image_num: int
+        Returns a dict with keys:
+            image: Tensor float32 [C,H,W] in [0,1]
+            mask: Tensor long or float [H,W] (0/1)
+            patient_num: int
+            image_num: int
+            image_type: str (the specific type of this sample)
         """
-
-        assert image_type in ["raw", "sn1", "sn2"]
+        
+        # Validate and normalize image_type parameter
+        if isinstance(image_type, str):
+            if image_type == "all":
+                self.image_types = ["raw", "sn1", "sn2"]
+            else:
+                self.image_types = [image_type]
+        elif isinstance(image_type, list):
+            valid_types = ["raw", "sn1", "sn2"]
+            for img_type in image_type:
+                if img_type not in valid_types:
+                    raise ValueError(f"Invalid image_type '{img_type}'. Must be one of {valid_types}")
+            self.image_types = image_type
+        else:
+            raise ValueError("image_type must be str or list of str")
+            
         assert split in ["train", "val", "test"]
 
         self.h5_path = h5_path
-        self.image_type = image_type
         self.split = split
         self.transform = transform
-        self.tile_size = tile_size  # e.g., 512
-        self.overlap = overlap      # e.g., 64 pixels
+        self.tile_size = tile_size
+        self.overlap = overlap
 
+        # We'll store all samples from all requested image types
+        self.samples = []  # List of tuples: (image_type, index_in_original_dataset, tile_coords)
+        
         with h5py.File(self.h5_path, 'r') as f:
             self.train_test_split = f["HE"].attrs["train_test_split"]
             self.patient_nums = f["HE"].attrs["patient_num"]
             self.image_nums = f["HE"].attrs["image_num"]
 
+            # Get base indices for the split
             if split == "test":
-                self.indices = np.where(self.train_test_split == "test")[0]
+                base_indices = np.where(self.train_test_split == "test")[0]
             elif patient_split is not None:
                 all_patients = self.patient_nums
                 if split == "train":
@@ -79,66 +95,98 @@ class CoCaHisDataset(Dataset):
                 else:
                     chosen_patients = patient_split["val_patients"]
 
-                self.indices = np.where(
+                base_indices = np.where(
                     (np.isin(all_patients, chosen_patients)) &
                     (self.train_test_split == "train")
                 )[0]
             else:
                 # fallback: use original dataset split
-                self.indices = np.where(self.train_test_split == split)[0]
+                base_indices = np.where(self.train_test_split == split)[0]
 
-        # ---- Precompute tile indices if tiling is used ----
-        if self.tile_size is not None:
-            self.tile_mapping = []  # list of tuples: (image_idx, y0, y1, x0, x1)
-            with h5py.File(self.h5_path, 'r') as f:
-                for idx in self.indices:
-                    img = np.array(f[f"HE/{self.image_type}"][idx])
-                    H, W = pad_to_multiple_of_32(img).shape[:2]
-                    step = self.tile_size - self.overlap
-                    for y in range(0, H, step):
-                        for x in range(0, W, step):
-                            y1 = min(y + self.tile_size, H)
-                            x1 = min(x + self.tile_size, W)
-                            y0 = y1 - self.tile_size
-                            x0 = x1 - self.tile_size
-                            self.tile_mapping.append((idx, y0, y1, x0, x1))
+            # Build samples list from all requested image types
+            for img_type in self.image_types:
+                if self.tile_size is not None:
+                    # With tiling: create tiles for each image type
+                    for idx in base_indices:
+                        img = np.array(f[f"HE/{img_type}"][idx])
+                        H, W = pad_to_multiple_of_32(img).shape[:2]
+                        step = self.tile_size - self.overlap
+                        for y in range(0, H, step):
+                            for x in range(0, W, step):
+                                y1 = min(y + self.tile_size, H)
+                                x1 = min(x + self.tile_size, W)
+                                y0 = y1 - self.tile_size
+                                x0 = x1 - self.tile_size
+                                self.samples.append((img_type, idx, (y0, y1, x0, x1), (H, W)))  # Added original dimensions
+                else:
+                    # Without tiling: add each image directly
+                    for idx in base_indices:
+                        self.samples.append((img_type, idx, None, (H, W)))  # Added original dimensions
 
     def __len__(self):
-        if self.tile_size is not None:
-            return len(self.tile_mapping)
-        return len(self.indices)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        with h5py.File(self.h5_path, 'r') as f:
-            if self.tile_size is not None:
-                img_idx, y0, y1, x0, x1 = self.tile_mapping[idx]
-                img = np.array(f[f"HE/{self.image_type}"][img_idx])
-                mask = np.array(f["GT/GT_majority_vote"][img_idx])
-                patient_num = int(f["HE"].attrs["patient_num"][img_idx])
-                image_num = int(f["HE"].attrs["image_num"][img_idx])
 
+        if self.tile_size is not None:
+            img_type, img_idx, tile_coords, original_dims = self.samples[idx]  # Unpack new tuple
+            y0, y1, x0, x1 = tile_coords
+            H, W = original_dims  # Get original dimensions
+        else:
+            img_type, img_idx, tile_coords, original_dims = self.samples[idx]
+            H, W = original_dims
+
+        
+        with h5py.File(self.h5_path, 'r') as f:
+            if tile_coords is not None:
+                # With tiling
+                y0, y1, x0, x1 = tile_coords
+                img = np.array(f[f"HE/{img_type}"][img_idx])
+                mask = np.array(f["GT/GT_majority_vote"][img_idx])
+                
                 # Pad first
                 img = pad_to_multiple_of_32(img)
                 mask = pad_to_multiple_of_32(mask)
-
+                
                 # Crop tile
                 img = img[y0:y1, x0:x1]
                 mask = mask[y0:y1, x0:x1]
-
             else:
-                img_idx = self.indices[idx]
-                img = np.array(f[f"HE/{self.image_type}"][img_idx])
+                # Without tiling
+                img = np.array(f[f"HE/{img_type}"][img_idx])
                 mask = np.array(f["GT/GT_majority_vote"][img_idx])
-                patient_num = int(f["HE"].attrs["patient_num"][img_idx])
-                image_num = int(f["HE"].attrs["image_num"][img_idx])
                 img = pad_to_multiple_of_32(img)
                 mask = pad_to_multiple_of_32(mask)
+
+            patient_num = int(f["HE"].attrs["patient_num"][img_idx])
+            image_num = int(f["HE"].attrs["image_num"][img_idx])
 
         # Apply transform
         if self.transform:
             transformed = self.transform(image=img, mask=mask)
             img, mask = transformed["image"], transformed["mask"]
         else:
-            img = torch.from_numpy(img.transpose(2,0,1)).float() / 255.0
+            img = torch.from_numpy(img.transpose(2, 0, 1)).float() / 255.0
 
-        return {"image": img, "mask": mask, "patient_num": patient_num, "image_num": image_num}
+        return {
+            "image": img, 
+            "mask": mask, 
+            "patient_num": patient_num, 
+            "image_num": image_num,
+            "image_type": img_type,
+            "tile_coords": tile_coords,  # Add tile coordinates
+            "original_dims": (H, W)      # Add original dimensions
+        }
+
+    
+
+    def get_dataset_stats(self):
+        """Get statistics about the dataset composition."""
+        stats = {}
+        for img_type in self.image_types:
+            type_count = sum(1 for sample in self.samples if sample[0] == img_type)
+            stats[img_type] = type_count
+        stats["total"] = len(self.samples)
+        return stats
+    
+

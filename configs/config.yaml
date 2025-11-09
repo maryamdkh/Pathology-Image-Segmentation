@@ -12,17 +12,59 @@ dataset:
   val_fraction: 0.1             # Fraction of data for validation
   augmentation:
     strength: "medium"  # medium, strong
-
+    
 # =========================
 # Modeling configuration
 # =========================
 model:
-  architecture: "UnetPlusPlus"
-  encoder_name: "resnet101"     # Encoder backbone
-  encoder_weights: "imagenet"   # Pretrained weights or None
-  in_channels: 3
-  classes: 1
-  checkpoint_path: null #${paths.project_root}/checkpoints/best_model.pth
+  # Inference mode: "single" or "majority_vote"
+  inference_mode: "single"
+  
+  # Single model configuration (used when inference_mode: "single")
+  single_model:
+    architecture: "UnetPlusPlus"
+    encoder_name: "resnet101"
+    encoder_weights: "imagenet"
+    in_channels: 3
+    classes: 1
+    checkpoint_path: null
+
+  # Majority voting configuration (used when inference_mode: "majority_vote")
+  majority_vote:
+    models:
+      - name: "model_raw"
+        architecture: "UnetPlusPlus"
+        encoder_name: "resnet101"
+        encoder_weights: "imagenet"
+        in_channels: 3
+        classes: 1
+        checkpoint_path: "${paths.project_root}/checkpoints/model_raw/best_model.pth"
+        trained_on: "raw"
+
+      - name: "model_sn1"
+        architecture: "UnetPlusPlus"
+        encoder_name: "resnet101"
+        encoder_weights: "imagenet"
+        in_channels: 3
+        classes: 1
+        checkpoint_path: "${paths.project_root}/checkpoints/model_sn1/best_model.pth"
+        trained_on: "sn1"
+
+      - name: "model_sn2"
+        architecture: "UnetPlusPlus"
+        encoder_name: "resnet101"
+        encoder_weights: "imagenet"
+        in_channels: 3
+        classes: 1
+        checkpoint_path: "${paths.project_root}/checkpoints/model_sn2/best_model.pth"
+        trained_on: "sn2"
+
+    # Optional: Voting strategy (default: "majority")
+    voting_strategy: "majority"  # Options: "majority", "average", "max_confidence"
+    
+    # Optional: Confidence threshold for binary segmentation (default: 0.5)
+    confidence_threshold: 0.5
+  
 
 # =========================
 # Loss function

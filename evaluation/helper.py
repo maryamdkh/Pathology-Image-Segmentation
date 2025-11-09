@@ -9,9 +9,7 @@ import json
 import logging
 import numpy as np
 
-from evaluation.metrics_calculator import calculate_detailed_segmentation_report
 from training.metrics import iou_coeff, dice_coeff, precision_recall
-from evaluation.visualizer import visualize_prediction_comparison, prepare_image_for_visualization, prepare_mask_for_visualization
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +59,7 @@ def find_optimal_threshold_comprehensive(model, val_loader, device):
         mean_f1 = 2 * (mean_precision * mean_recall) / (mean_precision + mean_recall + 1e-8)
         
         # You can choose which metric to optimize
-        current_metric = mean_iou  # or mean_f1, or mean_dice
+        current_metric = mean_dice   # or mean_f1, or mean_iou
         
         results.append({
             'threshold': thresh,
@@ -77,91 +75,12 @@ def find_optimal_threshold_comprehensive(model, val_loader, device):
             best_threshold = thresh
     
     # Print comprehensive results
-    print(f"\n🎯 Optimal threshold: {best_threshold:.3f}")
+    print(f"\nOptimal threshold: {best_threshold:.3f}")
     best_result = [r for r in results if r['threshold'] == best_threshold][0]
     print(f"IoU: {best_result['iou']:.4f}, Dice: {best_result['dice']:.4f}")
     print(f"Precision: {best_result['precision']:.4f}, Recall: {best_result['recall']:.4f}")
     
-    return best_threshold, results
-
-def evaluate_model_performance(
-    model: torch.nn.Module,
-    dataloader: torch.utils.data.DataLoader,
-    device: torch.device,
-    threshold: float = 0.5
-) -> Dict[str, Any]:
-    """
-    Comprehensive model evaluation returning detailed performance report.
-    """
-    logger.info("Starting comprehensive model evaluation...")
-    
-    evaluation_report = calculate_detailed_segmentation_report(
-        model, dataloader, device, threshold
-    )
-    
-    logger.info("✅ Model evaluation completed")
-    return evaluation_report
-
-
-def generate_evaluation_visualizations(
-    model: torch.nn.Module,
-    dataloader: torch.utils.data.DataLoader,
-    device: torch.device,
-    output_dir: Path,
-    num_samples: int = 5,
-    tile_size: int = 512,
-    overlap: int = 64
-) -> List[Path]:
-    """
-    Generate sample visualizations for model evaluation.
-    """
-    output_dir.mkdir(parents=True, exist_ok=True)
-    saved_paths = []
-    samples_processed = 0
-    
-    model.eval()
-    
-    for batch in dataloader:
-        if samples_processed >= num_samples:
-            break
-            
-        images = batch["image"]
-        masks = batch["mask"]
-        patient_nums = batch["patient_num"]
-        image_nums = batch["image_num"]
-        
-        for i in range(len(images)):
-            if samples_processed >= num_samples:
-                break
-                
-            # Prepare image and mask
-            image_np = prepare_image_for_visualization(images[i].numpy())
-            mask_np = prepare_mask_for_visualization(masks[i].numpy(), image_np.shape[:2])
-            
-            save_path = output_dir / f"patient_{patient_nums[i].item()}_image_{image_nums[i].item()}.png"
-            
-            try:
-                visualize_prediction_comparison(
-                    model=model,
-                    image=image_np,
-                    device=device,
-                    ground_truth_mask=mask_np,
-                    tile_size=tile_size,
-                    overlap=overlap,
-                    save_path=save_path
-                )
-                
-                saved_paths.append(save_path)
-                samples_processed += 1
-                logger.info(f"✅ Generated visualization {samples_processed}/{num_samples}")
-                
-            except Exception as e:
-                logger.error(f"❌ Failed to generate visualization for sample {i}: {e}")
-                continue
-    
-    logger.info(f"Generated {len(saved_paths)} visualization samples")
-    return saved_paths
-
+    return best_threshold,best_result, results
 
 def save_evaluation_results(
     evaluation_report: Dict[str, Any],
@@ -184,7 +103,6 @@ def save_evaluation_results(
         f.write(generate_evaluation_summary(evaluation_report))
     
     logger.info(f"Saved evaluation results to: {save_dir}")
-
 
 def generate_evaluation_summary(evaluation_report: Dict[str, Any]) -> str:
     """Generate human-readable evaluation summary."""

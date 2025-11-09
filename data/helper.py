@@ -21,7 +21,7 @@ def create_dataloaders(config,splits,patient_split=None):
         "val": get_val_test_transform(),
         "test": get_val_test_transform()
     }
-    train_loaders = {}
+    data_loaders = {}
     for split in splits:
         dataset = CoCaHisDataset(
             h5_path= ds_cfg['path'],
@@ -34,11 +34,11 @@ def create_dataloaders(config,splits,patient_split=None):
         )
         print(f"Number of samples in {split} dataset: {len(dataset)}")
 
-        train_loader = DataLoader(dataset, batch_size=config["training"]["batch_size"],
+        data_loader = DataLoader(dataset, batch_size=config["training"]["batch_size"],
                               shuffle=True, num_workers=2, pin_memory=True)
-        train_loaders[split] = train_loader
+        data_loaders[split] = data_loader
 
-    return patient_split,train_loaders
+    return patient_split,data_loaders
 
 def build_Cocahis_patient_split(h5_path: str, val_fraction: float = 0.2, seed: int = 42):
     with h5py.File(h5_path, "r") as f:
