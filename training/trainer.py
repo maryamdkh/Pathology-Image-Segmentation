@@ -24,7 +24,6 @@ def train_one_epoch(model: torch.nn.Module, dataloader: DataLoader, optimizer,cr
     pbar = tqdm(dataloader, desc="Train", leave=False)
     for batch_idx, batch in enumerate(pbar):
         images = batch["image"].to(device)              # [B,3,H,W]
-        print(images.shape)
         masks = batch["mask"].to(device).float()                # [B,H,W] or [B,1,H,W] depending
         if masks.ndim == 3:
             masks = masks.unsqueeze(1)                 # -> [B,1,H,W]
