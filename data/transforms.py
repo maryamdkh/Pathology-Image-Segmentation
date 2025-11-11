@@ -1,6 +1,19 @@
 import albumentations as A
 
+def get_cocahis_paper_augmentation():
 
+    return A.Compose([
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.Affine(
+                scale=(0.85, 1.15),
+                rotate=(-20, 20),
+                shear=(-8, 8),
+                p=0.5
+            ),
+      
+
+    ])
 
 def get_medium_augmentation():
     """

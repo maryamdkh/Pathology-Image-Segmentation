@@ -1,9 +1,6 @@
 import torch
 import segmentation_models_pytorch as smp
-
-import torch
-import segmentation_models_pytorch as smp
-from typing import List, Dict, Optional
+from typing import Dict
 
 def build_seg_model(config: dict, device: torch.device = "cuda"):
     """

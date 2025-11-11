@@ -4,8 +4,12 @@ import numpy as np
 
 from sklearn.model_selection import train_test_split
 from data.datasets import CoCaHisDataset
-from data.transforms import get_medium_augmentation, get_val_test_transform, get_strong_augmentation
+from data.transforms import get_medium_augmentation, get_val_test_transform, get_strong_augmentation, get_cocahis_paper_augmentation
 from torch.utils.data import DataLoader
+
+transformation_type = {"medium":get_medium_augmentation(),
+                       "strong":get_strong_augmentation(),
+                       "cocahis_paper":get_cocahis_paper_augmentation()}
 
 def create_dataloaders(config,splits,patient_split=None):
     ds_cfg = config["dataset"]
@@ -17,7 +21,7 @@ def create_dataloaders(config,splits,patient_split=None):
             seed=config["training"]["seed"]
         )
     transform_mapping = {
-        "train": get_medium_augmentation() if ds_cfg['augmentation']['strength'] == "medium" else get_strong_augmentation(),
+        "train": transformation_type[ds_cfg['augmentation']['strength']],
         "val": get_val_test_transform(),
         "test": get_val_test_transform()
     }
