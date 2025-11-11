@@ -29,11 +29,40 @@ def pad_to_multiple_of_32(img, **kwargs):
     )
     return img
 
+def ensure_channels_first(tensor: torch.Tensor, expected_channels: int = 3) -> torch.Tensor:
+    """
+    Ensure tensor is in channels-first format [C, H, W].
+    
+    Args:
+        tensor: Input tensor that could be in [H, W, C] or [C, H, W] format
+        expected_channels: Expected number of channels
+    
+    Returns:
+        Tensor in [C, H, W] format
+    """
+    if tensor.dim() == 3:
+        # Check if channels are last (typical case: H, W, C)
+        if tensor.shape[2] == expected_channels and tensor.shape[0] != expected_channels:
+            # Convert from [H, W, C] to [C, H, W]
+            tensor = tensor.permute(2, 0, 1)
+        elif tensor.shape[0] == expected_channels:
+            # Already in [C, H, W] format
+            pass
+        else:
+            # Ambiguous case, try to infer
+            if tensor.shape[-1] in [1, 3, 4]:  # Common channel sizes
+                tensor = tensor.permute(2, 0, 1)
+            # Otherwise keep as is and warn
+            else:
+                print(f"Warning: Ambiguous tensor shape {tensor.shape}. Expected channels-first format.")
+    
+    return tensor
+
 class CoCaHisDataset(Dataset):
 
     def __init__(self, h5_path: str, image_type: Union[str, List[str]] = "raw", split: str = "train",
                  transform=None, patient_split: Optional[Dict[str, np.ndarray]] = None,
-                 tile_size: int = None, overlap: int = 0):
+                 tile_size: int = None, overlap: int = 0, verbose: bool = True ,auto_fix_channels: bool = True):
         """
         PyTorch custom dataset for CoCaHis HDF5 structure.
 
@@ -76,6 +105,8 @@ class CoCaHisDataset(Dataset):
         self.transform = transform
         self.tile_size = tile_size
         self.overlap = overlap
+        self.verbose = verbose
+        self.auto_fix_channels = auto_fix_channels
 
         # We'll store all samples from all requested image types
         self.samples = []  # List of tuples: (image_type, index_in_original_dataset, tile_coords, original_dims)
@@ -183,8 +214,21 @@ class CoCaHisDataset(Dataset):
         if self.transform:
             transformed = self.transform(image=img, mask=mask)
             img, mask = transformed["image"], transformed["mask"]
+            
         else:
             img = torch.from_numpy(img.transpose(2, 0, 1)).float() / 255.0
+
+        # Auto-fix channel dimensions if enabled
+        if self.auto_fix_channels:
+            original_img_shape = img.shape
+            original_mask_shape = mask.shape
+            
+            img = ensure_channels_first(img, expected_channels=3)
+            mask = ensure_channels_first(mask, expected_channels=1)
+            
+            if self.verbose and (img.shape != original_img_shape or mask.shape != original_mask_shape):
+                print(f"Fixed tensor shapes: image {original_img_shape} -> {img.shape}, "
+                      f"mask {original_mask_shape} -> {mask.shape}")
 
         return {
             "image": img, 
