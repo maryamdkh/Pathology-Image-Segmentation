@@ -7,9 +7,7 @@ from data.datasets import CoCaHisDataset
 from data.transforms import get_medium_augmentation, get_val_test_transform, get_strong_augmentation, get_cocahis_paper_augmentation
 from torch.utils.data import DataLoader
 
-transformation_type = {"medium":get_medium_augmentation(),
-                       "strong":get_strong_augmentation(),
-                       "cocahis_paper":get_cocahis_paper_augmentation()}
+
 
 def create_dataloaders(config,splits,patient_split=None):
     ds_cfg = config["dataset"]
@@ -20,6 +18,9 @@ def create_dataloaders(config,splits,patient_split=None):
             val_fraction=ds_cfg["val_fraction"],
             seed=config["training"]["seed"]
         )
+    transformation_type = {"medium":get_medium_augmentation(),
+                       "strong":get_strong_augmentation(),
+                       "cocahis_paper":get_cocahis_paper_augmentation()}
     transform_mapping = {
         "train": transformation_type[ds_cfg['augmentation']['strength']],
         "val": get_val_test_transform(),
