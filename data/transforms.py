@@ -191,14 +191,14 @@ def get_strong_augmentation():
             ),
         ], p=0.5),
         
-        # Cutout/Mixup style augmentations (advanced)
-        A.Cutout(
-            num_holes=8,
-            max_h_size=16,
-            max_w_size=16,
-            fill_value=0,
-            p=0.3
-        ),
+        # # Cutout/Mixup style augmentations (advanced)
+        # A.Cutout(
+        #     num_holes=8,
+        #     max_h_size=16,
+        #     max_w_size=16,
+        #     fill_value=0,
+        #     p=0.3
+        # ),
         
         # Normalization
         A.Normalize(
