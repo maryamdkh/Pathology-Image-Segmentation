@@ -16,10 +16,10 @@ def load_config(config_path: str) -> DictConfig:
     
     return OmegaConf.create(config_resolved)
 
-def save_config(config: Dict[str, Any], save_path: Path):
-    """Save configuration to YAML file."""
-    with open(save_path, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False)
+def save_config(config: DictConfig, save_path: Path):
+    """Save configuration using OmegaConf to preserve syntax."""
+    OmegaConf.save(config, save_path)
+    print(f"Configuration saved to: {save_path}")
 
 def setup_directories(config: Dict[str, Any]) -> None:
     
