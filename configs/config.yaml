@@ -65,7 +65,6 @@ model:
     # Optional: Confidence threshold for binary segmentation (default: 0.5)
     confidence_threshold: 0.5
   
-
 # =========================
 # Loss function
 # =========================

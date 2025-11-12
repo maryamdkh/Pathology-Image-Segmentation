@@ -152,7 +152,7 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     # -------------------------------------------------------------------------
     start_epoch, best_val_dice, patient_split = resume_checkpoint(
         model, optimizer, scheduler, scaler,
-        config["model"].get("checkpoint_path"), device
+        config["model"]['single_model'].get("checkpoint_path"), device
     )
 
     # -------------------------------------------------------------------------

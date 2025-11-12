@@ -20,7 +20,7 @@ from utils.logging import setup_mlflow_logger
 from models.helper import build_seg_model
 from data.helper import create_dataloaders
 from evaluation.metrics_calculator import calculate_detailed_segmentation_report
-from evaluation.visualization import generate_evaluation_visualizations
+from evaluation.visualization import visualize_image_with_prediction
 from evaluation.helper import find_optimal_threshold_comprehensive
 
 def setup_logging(level=logging.INFO):
@@ -88,6 +88,19 @@ def parse_args():
         default=5,
         help="Number of sample visualizations to generate"
     )
+    parser.add_argument(
+        "--image-type",
+        type=str,
+        default="raw",
+        help="Type of the dataset to choose the image from from evaluation."
+    )
+    parser.add_argument(
+        "--image-idx",
+        type=int,
+        default=5,
+        help="Index of the image for evaluation visualization."
+    )
+
     
     return parser.parse_args()
 
@@ -177,15 +190,9 @@ def main():
         
         # Generate visualizations if requested
         if args.visualize:
-            logger.info(f"Generating {args.num_visualizations} sample visualizations...")
-            generate_evaluation_visualizations(
-                model=model,
-                dataloader=dataloaders[args.split],
-                device=device,
-                output_dir=Path("evaluation_visualizations"),
-                num_samples=args.num_visualizations,
-                threshold=args.threshold
-            )
+            logger.info(f"Generating mask prediction for image with type {args.image_type} and index {args.image_idx}...")
+            visualize_image_with_prediction(dataloaders[args.split].dataset, model=model,
+                                             image_type=args.image_type, image_idx=args.image_idx, alpha=0.6, device=device)
         
         logger.info("Evaluation completed successfully!")
         

@@ -3,7 +3,9 @@ import numpy as np
 import torch
 import h5py
 
-def visualize_image_with_prediction(dataset, model, image_type: str, image_idx: int, alpha: float = 0.6, device: str = 'cuda'):
+def visualize_image_with_prediction(dataset, model, 
+                                    image_type: str, image_idx: int,
+                                      alpha: float = 0.6, device: str = 'cuda'):
     """
     Reconstruct and visualize an image with both real and predicted segmentation overlays.
     
