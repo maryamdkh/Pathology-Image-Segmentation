@@ -18,7 +18,7 @@ dataset:
 # =========================
 model:
   # Inference mode: "single" or "majority_vote"
-  inference_mode: "majority_vote"
+  inference_mode: "single"
   
   # Single model configuration (used when inference_mode: "single")
   single_model:
