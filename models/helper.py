@@ -27,7 +27,7 @@ def build_seg_model(config: dict, device: torch.device = "cuda"):
 def _build_single_model(model_cfg: Dict, device: torch.device) -> torch.nn.Module:
     """Build a single segmentation model."""
     architecture = model_cfg.get("architecture", "UnetPlusPlus")
-    encoder_name = model_cfg.get("encoder_name", "resnet50")
+    encoder_name = model_cfg.get("encoder_name", "")
     encoder_weights = model_cfg.get("encoder_weights", "imagenet")
     in_channels = model_cfg.get("in_channels", 3)
     num_classes = model_cfg.get("classes", 1)
@@ -58,6 +58,8 @@ def _build_single_model(model_cfg: Dict, device: torch.device) -> torch.nn.Modul
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint["model_state"])
         print(f"✅ Loaded pretrained model from: {checkpoint_path}")
+
+    print(f"The {model.name} model has been built!")
 
     return model.to(device)
 

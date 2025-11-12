@@ -27,7 +27,7 @@ class MajorityVotingEnsemble(nn.Module):
     def _build_single_model(self, config: Dict, device: torch.device) -> nn.Module:
         """Build a single segmentation model."""
         architecture = config.get("architecture", "UnetPlusPlus")
-        encoder_name = config.get("encoder_name", "resnet50")
+        encoder_name = config.get("encoder_name", "")
         encoder_weights = config.get("encoder_weights", "imagenet")
         in_channels = config.get("in_channels", 3)
         num_classes = config.get("classes", 1)
