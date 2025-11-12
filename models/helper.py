@@ -59,7 +59,7 @@ def _build_single_model(model_cfg: Dict, device: torch.device) -> torch.nn.Modul
         model.load_state_dict(checkpoint["model_state"])
         print(f"✅ Loaded pretrained model from: {checkpoint_path}")
 
-    print(f"The {model.name} model has been built!")
+    print(f"The {model.name} model has been built!!")
 
     return model.to(device)
 
