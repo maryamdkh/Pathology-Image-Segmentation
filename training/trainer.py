@@ -10,6 +10,8 @@ from models.helper import build_seg_model
 from utils.utils import check_system_resources, get_device
 from training.losses import LossFactory
 
+import numpy as np 
+
 def train_one_epoch(model: torch.nn.Module, dataloader: DataLoader, optimizer,criterion, device,
                     scaler: GradScaler = None, accumulation_steps: int = 1):
 
@@ -109,7 +111,7 @@ def validate_one_epoch(model: torch.nn.Module, dataloader: DataLoader,criterion,
                 'iou': running_iou / n_batches,
                 'precision': running_precision / n_batches,
                 'recall': running_recall / n_batches,
-                'f1': 2 * (running_precision * running_recall) / (running_precision + running_recall + 1e-8) / n_batches
+                'f1': 2 * (running_precision/n_batches * running_recall/n_batches) / (running_precision/n_batches + running_recall/n_batches + 1e-8)
             }
 
     return metrics
@@ -130,6 +132,8 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     set_seed(config["training"].get("seed", 42))
     device = get_device(config["training"].get("device", 'auto'))
     best_checkpoint_path = config["training"]["checkpoint_dir"] + "/best_model.pth"
+    monitor_metric = config['training'].get("monitor_metric",'val_dice')
+    assert monitor_metric in ['dice','loss']
 
 
     # -------------------------------------------------------------------------
@@ -150,10 +154,12 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     # -------------------------------------------------------------------------
     # Resume Checkpoint (if any)
     # -------------------------------------------------------------------------
-    start_epoch, best_val_dice, patient_split = resume_checkpoint(
+    start_epoch, best_val_metrics, patient_split = resume_checkpoint(
         model, optimizer, scheduler, scaler,
         config["model"]['single_model'].get("checkpoint_path"), device
     )
+    if monitor_metric not in best_val_metrics.keys():
+        raise KeyError(f"Monitor metric '{monitor_metric}' not found in validation metrics")
 
     # -------------------------------------------------------------------------
     # Data Preparation
@@ -161,13 +167,14 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     patient_split, dataloaders = create_dataloaders(config=config, splits=['train','val'],patient_split=patient_split)
 
     # Early stopping setup
+    best_monitor_metric = best_val_metrics.get(monitor_metric, -float('inf') if monitor_metric == "dice" else float('inf'))
     early_stopping = EarlyStopping(
         patience=config["training"].get("early_stopping_patience", 15),
         min_delta=config["training"].get("early_stopping_delta", 1e-4),
-        mode='max',  # For dice score (higher is better)
-        best_score = best_val_dice,
+        mode='max' if monitor_metric == "dice" else "min",  # For dice score (higher is better)
+        best_score = best_monitor_metric,
         verbose=True
-    )
+    )    
 
     # -------------------------------------------------------------------------
     # 5. Training Loop
@@ -195,7 +202,7 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
         # Learning rate scheduling
         current_lr = optimizer.param_groups[0]['lr']
         if config["training"]["scheduler"] == "ReduceLROnPlateau":
-            scheduler.step(val_metrics['dice'])
+            scheduler.step(val_metrics[monitor_metric])
         else:
             scheduler.step()
 
@@ -235,13 +242,14 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
         print(f"  LR: {current_lr:.2e}")
 
         # Save best model (based on validation dice)
-        if val_metrics['dice'] > best_val_dice:
-            best_val_dice = val_metrics['dice']
-            save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_metrics['dice'], patient_split, best_checkpoint_path)
-            print(f"Saved new best checkpoint: {best_checkpoint_path} (val_dice={val_metrics['dice']:.4f})")
+        if (monitor_metric == "dice" and val_metrics[monitor_metric] > best_monitor_metric) or \
+            (monitor_metric == "loss" and val_metrics[monitor_metric] < best_monitor_metric):
+            best_monitor_metric = val_metrics[monitor_metric]
+            save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_metrics, patient_split, best_checkpoint_path)
+            print(f"Saved new best checkpoint: {best_checkpoint_path} (val_dice={val_metrics['dice']:.4f}) | (val_loss={val_metrics['loss']:.4f})")
         
         # Check early stopping (using validation dice)
-        if early_stopping(val_metrics['dice'], model, epoch):
+        if early_stopping(val_metrics[monitor_metric], model, epoch):
             print(f"Early stopping triggered at epoch {epoch}")
             break
 
@@ -249,7 +257,7 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
         logger.finish()
 
     print(f"\nTraining finished")
-    print(f"Best val dice: {best_val_dice:.4f} at epoch {early_stopping.best_epoch}")
+    print(f"Best val {monitor_metric}: {best_monitor_metric:.4f} at epoch {early_stopping.best_epoch}")
     print(f"Best checkpoint: {best_checkpoint_path}")
 
     return best_checkpoint_path,train_history

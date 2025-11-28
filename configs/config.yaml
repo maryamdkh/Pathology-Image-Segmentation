@@ -95,7 +95,7 @@ training:
   learning_rate: 1.0e-04 
   early_stopping_patience: 15
   early_stopping_delta: 1e-4
-  monitor_metric: "val_dice" 
+  monitor_metric: "loss" 
   gradient_accumulation_steps: 4
   use_amp: true                  # Use automatic mixed precision
   seed: 42

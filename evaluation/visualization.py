@@ -18,7 +18,11 @@ def visualize_image_with_prediction(dataset, model,
         device: Device to run model on ('cuda' or 'cpu')
     """
     # Get all tiles for the image
-    tiles = dataset.get_image_tiles(image_type, image_idx)
+    indices = []
+    for key in dataset.image_index_to_dataset_indices.keys():
+        indices.append(int(key[1]))
+
+    tiles = dataset.get_image_tiles(image_type, indices[image_idx])
     
     if not tiles:
         print(f"No tiles found for image_type '{image_type}', image_idx {image_idx}")

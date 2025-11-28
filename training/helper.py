@@ -97,14 +97,15 @@ def build_scheduler(optimizer, config):
     elif sch_name == "cosineannealingwarmrestartslr":
         return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=20, T_mult=2,eta_min=1e-6)
     elif sch_name == "reducelronplateau":
-        return torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=3)
+        mode = 'max' if config['training']["monitor_metric"] == "dice" else "min"
+        return torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode=mode, factor=0.5, patience=3)
     else:
         raise ValueError(f"Unsupported scheduler: {sch_name}")
 
 
 def resume_checkpoint(model, optimizer, scheduler, scaler, checkpoint_path, device):
     start_epoch = 1
-    best_val_dice = -1.0
+    best_val_metrics = None
     patient_split = None
     if checkpoint_path and Path(checkpoint_path).exists():
         print(f"Resuming from checkpoint: {checkpoint_path}")
@@ -118,24 +119,24 @@ def resume_checkpoint(model, optimizer, scheduler, scaler, checkpoint_path, devi
             scaler.load_state_dict(ckpt["scaler_state"])
         if "epoch" in ckpt:
             start_epoch = ckpt["epoch"] + 1
-        if "val_dice" in ckpt:
-            best_val_dice = ckpt["val_dice"]
+        if "val_metrics" in ckpt:
+            best_val_metrics = ckpt["val_metrics"]
         if "patient_split" in ckpt:
             patient_split = ckpt["patient_split"]
-        print(f"Resumed from epoch {start_epoch - 1} | Best val dice: {best_val_dice:.4f}")
+        print(f"Resumed from epoch {start_epoch - 1} | Best val dice: {best_val_metrics['dice'] if best_val_metrics else -1}")
     else:
         print("Starting new training run.")
-    return start_epoch, best_val_dice, patient_split
+    return start_epoch, best_val_metrics, patient_split
 
 
-def save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_dice, patient_split, path):
+def save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_metrics, patient_split, path):
     torch.save({
         "epoch": epoch,
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
         "scheduler_state": scheduler.state_dict(),
         "scaler_state": scaler.state_dict() if scaler else None,
-        "val_dice": val_dice,
+        "val_metrics": val_metrics,
         "patient_split": {
             "train_patients": patient_split["train_patients"].tolist(),
             "val_patients": patient_split["val_patients"].tolist()
