@@ -167,7 +167,7 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
     patient_split, dataloaders = create_dataloaders(config=config, splits=['train','val'],patient_split=patient_split)
 
     # Early stopping setup
-    best_monitor_metric = best_val_metrics.get(monitor_metric, -float('inf') if monitor_metric == "dice" else float('inf'))
+    best_monitor_metric = best_val_metrics[monitor_metric] if best_val_metrics and monitor_metric in best_val_metrics else (-float('inf') if monitor_metric == "dice" else float('inf'))
     early_stopping = EarlyStopping(
         patience=config["training"].get("early_stopping_patience", 15),
         min_delta=config["training"].get("early_stopping_delta", 1e-4),
