@@ -158,7 +158,7 @@ def train_model(config: dict, logger=None, device=None, verbose=False):
         model, optimizer, scheduler, scaler,
         config["model"]['single_model'].get("checkpoint_path"), device
     )
-    if monitor_metric not in best_val_metrics.keys():
+    if best_val_metrics and monitor_metric not in best_val_metrics.keys():
         raise KeyError(f"Monitor metric '{monitor_metric}' not found in validation metrics")
 
     # -------------------------------------------------------------------------
