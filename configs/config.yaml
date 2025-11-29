@@ -23,7 +23,7 @@ model:
   # Single model configuration (used when inference_mode: "single")
   single_model:
     architecture: "UnetPlusPlus"
-    encoder_name: "densenet201" #resnet101
+    encoder_name: "mit_b5" #resnet101
     encoder_weights: "imagenet"
     in_channels: 3
     classes: 1
