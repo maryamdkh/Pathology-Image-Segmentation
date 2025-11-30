@@ -24,7 +24,7 @@ model:
   single_model:
     architecture: "UnetPlusPlus"
     encoder_name: "timm_swin_base" #"mit_b5" #resnet101
-    encoder_weights: "imagenet"
+    encoder_weights: "timm" #"imagenet"
     in_channels: 3
     classes: 1
     checkpoint_path: null

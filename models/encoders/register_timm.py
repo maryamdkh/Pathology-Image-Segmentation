@@ -1,22 +1,20 @@
 # encoders/register_timm.py
-from segmentation_models_pytorch.encoders import encoders
 from models.encoders.timm_encoder import TIMMEncoder
+from segmentation_models_pytorch.encoders import encoders
 
 
 def register_timm_encoder(alias: str, model_name: str):
-    """
-    Register a TIMM model under a custom SMP encoder name.
-    """
     encoders[alias] = {
-        "encoder": TIMMEncoder,
-        "pretrained_settings": {"imagenet": {}},
+        "encoder": TIMMEncoder,   # works for transformers
+        "pretrained_settings": {},
         "params": {
             "model_name": model_name,
-            "pretrained": True
-        }
+            "in_chans": 3,                 # <-- IMPORTANT
+            "pretrained": True,
+        },
     }
 
-
+\
 def register_common_transformers():
     """
     Register a set of popular TIMM transformer backbones.
