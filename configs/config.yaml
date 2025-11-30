@@ -70,16 +70,16 @@ model:
 # =========================
 loss:
   type: "single"                 # "single" or "combined"
-  primary: "bce"         # or "tversky", "dice", "jaccard","focal_tversky"
+  primary: "tversky"         # or "tversky", "dice", "jaccard","focal_tversky", "bce"
   secondary: "focal"               # optional
   weights: [0.6, 0.4]              # primary, secondary
   mode: "binary"                   # dice/jaccard mode
   smooth: 1e-5
   focal_gamma: 2.0
   focal_alpha: 0.8
-  tversky_alpha: 0.7
-  tversky_beta: 0.3
-  tversky_gamma: 0.75
+  tversky_alpha: 0.3
+  tversky_beta: 0.7
+  tversky_gamma: 0.1
 
 
 # =========================

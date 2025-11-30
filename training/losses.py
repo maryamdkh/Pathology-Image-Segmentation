@@ -36,16 +36,19 @@ class LossFactory:
 
         # --- Custom implemented losses ---
         elif name == "tversky":
-            alpha = self.config.get("tversky_alpha", 0.7)
-            beta = self.config.get("tversky_beta", 0.3)
+            alpha = self.config.get("tversky_alpha", 0.3) # Weight constant that penalize model for FPs (False Positives)
+            beta = self.config.get("tversky_beta", 0.7) # Weight constant that penalize model for FNs (False Negatives)
+            gamma = self.config.get("tversky_gamma", 0.75) 
             smooth = self.config.get("smooth", 1e-5)
-            return lambda logits, targets: self._tversky_loss(
-                logits, targets, alpha=alpha, beta=beta, smooth=smooth
+            return smp.losses.tversky(
+                mode= self.config.get("mode", "binary"),
+                alpha=alpha, beta=beta,smooth=smooth,gamma=gamma
             )
+         
 
         elif name == "focal_tversky":
-            alpha = self.config.get("tversky_alpha", 0.7)
-            beta = self.config.get("tversky_beta", 0.3)
+            alpha = self.config.get("tversky_alpha", 0.7) 
+            beta = self.config.get("tversky_beta", 0.3) 
             gamma = self.config.get("tversky_gamma", 0.75)
             smooth = self.config.get("smooth", 1e-5)
             return lambda logits, targets: self._focal_tversky_loss(
