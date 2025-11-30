@@ -40,7 +40,7 @@ class LossFactory:
             beta = self.config.get("tversky_beta", 0.7) # Weight constant that penalize model for FNs (False Negatives)
             gamma = self.config.get("tversky_gamma", 0.75) 
             smooth = self.config.get("smooth", 1e-5)
-            return smp.losses.tversky(
+            return smp.losses.TverskyLoss(
                 mode= self.config.get("mode", "binary"),
                 alpha=alpha, beta=beta,smooth=smooth,gamma=gamma
             )
