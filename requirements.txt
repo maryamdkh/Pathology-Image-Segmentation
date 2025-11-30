@@ -12,3 +12,4 @@ tqdm
 h5py
 matplotlib
 albumentations
+timm

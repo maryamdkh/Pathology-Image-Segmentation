@@ -1,6 +1,8 @@
 import torch
 import segmentation_models_pytorch as smp
 from typing import Dict
+from models.encoders.register_timm import register_common_transformers
+register_common_transformers()
 
 def build_seg_model(config: dict, device: torch.device = "cuda"):
     """
