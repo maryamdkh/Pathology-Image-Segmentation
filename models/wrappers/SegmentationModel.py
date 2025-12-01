@@ -68,11 +68,11 @@ class SegmentationModel(torch.nn.Module, SMPHubMixin):
             self.check_input_shape(x)
 
         features = self.encoder(x)
-        for i, f in enumerate(features):
-            if f is not None:
-                print(f"Stage {i} shape: {f.shape}")
-            else:
-                print(f"Stage {i} is None")
+        # for i, f in enumerate(features):
+        #     if f is not None:
+        #         print(f"Stage {i} shape: {f.shape}")
+        #     else:
+        #         print(f"Stage {i} is None")
                 
         decoder_output = self.decoder(features)
 
