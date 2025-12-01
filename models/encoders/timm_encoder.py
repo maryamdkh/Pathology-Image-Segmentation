@@ -5,6 +5,15 @@ import timm
 import torch
 import torch.nn as nn
 
+TIMM_ENCODERS = {
+    "timm_swin_tiny": "swin_tiny_patch4_window7_224",
+    "timm_swin_small": "swin_small_patch4_window7_224",
+    "timm_swin_base": "swin_base_patch4_window7_224",
+    "timm_vit_base": "vit_base_patch16_224",
+    "timm_vit_large": "vit_large_patch16_224",
+    "timm_maxvit_tiny": "maxvit_tiny_rw_224",
+    "timm_convnextv2": "convnextv2_tiny.fb_in1k",
+}
 
 class TimmUniversalEncoder(nn.Module):
     """
@@ -49,7 +58,9 @@ class TimmUniversalEncoder(nn.Module):
             )
 
         super().__init__()
-        self.name = name
+        
+        assert name in TIMM_ENCODERS, f"Encoder '{name}' not found. Available encoders: {list(TIMM_ENCODERS.keys())}"
+        self.name = TIMM_ENCODERS[name]
 
         # Default model configuration for feature extraction
         common_kwargs = dict(
