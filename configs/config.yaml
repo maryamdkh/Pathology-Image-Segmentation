@@ -22,7 +22,7 @@ model:
   
   # Single model configuration (used when inference_mode: "single")
   single_model:
-    architecture: "UnetPlusPlus"
+    architecture: "TimmUnetPlusPlus"
     encoder_name: "timm_swin_base" #"mit_b5" #resnet101
     encoder_weights: "timm" #"imagenet"
     in_channels: 3
