@@ -44,6 +44,8 @@ def _build_single_model(model_cfg: Dict, device: torch.device) -> torch.nn.Modul
         "FPN": smp.FPN,
         "PAN": smp.PAN,
         "Linknet": smp.Linknet,
+        "TimmUnetPlusPlus": UnetPlusPlus
+
     }
 
     if architecture not in model_factory:

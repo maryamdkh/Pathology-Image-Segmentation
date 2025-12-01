@@ -58,7 +58,7 @@ class TimmUniversalEncoder(nn.Module):
             )
 
         super().__init__()
-        
+
         assert name in TIMM_ENCODERS, f"Encoder '{name}' not found. Available encoders: {list(TIMM_ENCODERS.keys())}"
         self.name = TIMM_ENCODERS[name]
 
@@ -78,9 +78,9 @@ class TimmUniversalEncoder(nn.Module):
         # Load a temporary model to analyze its feature hierarchy
         try:
             with torch.device("meta"):
-                tmp_model = timm.create_model(name, features_only=True)
+                tmp_model = timm.create_model(self.name, features_only=True)
         except Exception:
-            tmp_model = timm.create_model(name, features_only=True)
+            tmp_model = timm.create_model(self.name, features_only=True)
 
         # Check if model output is in channel-last format (NHWC)
         self._is_channel_last = getattr(tmp_model, "output_fmt", None) == "NHWC"
@@ -106,7 +106,7 @@ class TimmUniversalEncoder(nn.Module):
 
         if self._is_transformer_style:
             # Transformer-like models (start at scale 4)
-            if "tresnet" in name:
+            if "tresnet" in self.name:
                 # 'tresnet' models start feature extraction at stage 1,
                 # so out_indices=(1, 2, 3, 4) for depth=5.
                 common_kwargs["out_indices"] = tuple(range(1, depth))
@@ -115,7 +115,7 @@ class TimmUniversalEncoder(nn.Module):
                 common_kwargs["out_indices"] = tuple(range(depth - 1))
 
             timm_model_kwargs = _merge_kwargs_no_duplicates(common_kwargs, kwargs)
-            self.model = timm.create_model(name, **timm_model_kwargs)
+            self.model = timm.create_model(self.name, **timm_model_kwargs)
 
             # FIX: Create meaningful features instead of zero channels
             # Use a convolution to create proper features for the missing scale
@@ -132,14 +132,14 @@ class TimmUniversalEncoder(nn.Module):
                 [in_channels] + [64] + self.model.feature_info.channels()  # 64 instead of 0
             )
         else:
-            if "dla" in name:
+            if "dla" in self.name:
                 # For 'dla' models, out_indices starts at 0 and matches the input size.
                 common_kwargs["out_indices"] = tuple(range(1, depth + 1))
             if self._is_vgg_style:
                 common_kwargs["out_indices"] = tuple(range(depth + 1))
 
             self.model = timm.create_model(
-                name, **_merge_kwargs_no_duplicates(common_kwargs, kwargs)
+                self.name, **_merge_kwargs_no_duplicates(common_kwargs, kwargs)
             )
 
             if self._is_vgg_style:
