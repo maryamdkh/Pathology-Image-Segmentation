@@ -28,6 +28,7 @@ model:
     in_channels: 3
     classes: 1
     checkpoint_path: null
+    encoder_depth: 5 #this is for timm encoder
 
   # Majority voting configuration (used when inference_mode: "majority_vote")
   majority_vote:

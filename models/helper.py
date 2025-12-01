@@ -1,8 +1,9 @@
 import torch
 import segmentation_models_pytorch as smp
 from typing import Dict
-from models.encoders.register_timm import register_common_transformers
-register_common_transformers()
+from models.encoders.timm_encoder import TimmUniversalEncoder
+from models.wrappers.UnetPlusPlus import UnetPlusPlus 
+
 
 def build_seg_model(config: dict, device: torch.device = "cuda"):
     """
@@ -47,14 +48,30 @@ def _build_single_model(model_cfg: Dict, device: torch.device) -> torch.nn.Modul
 
     if architecture not in model_factory:
         raise ValueError(f"Unknown architecture '{architecture}'. Supported: {list(model_factory.keys())}")
+    
+    if architecture == "TimmUnetPlusPlus":
+        encoder = TimmUniversalEncoder(
+            name=encoder_name,
+            pretrained=True if encoder_weights else False
+        )
 
-    model = model_factory[architecture](
-        encoder_name=encoder_name,
-        encoder_weights=encoder_weights,
-        in_channels=in_channels,
-        classes=num_classes,
-        activation=None,  # return raw logits
-    )
+        model = UnetPlusPlus(
+            encoder=encoder,
+            encoder_name=encoder_name,
+            in_channels=in_channels,
+            classes=num_classes,
+            activation=None,
+            encoder_depth=model_cfg.get("encoder_depth", 5),
+        )
+    else:
+
+        model = model_factory[architecture](
+            encoder_name=encoder_name,
+            encoder_weights=encoder_weights,
+            in_channels=in_channels,
+            classes=num_classes,
+            activation=None,  # return raw logits
+        )
 
     if checkpoint_path is not None:
         checkpoint = torch.load(checkpoint_path, map_location=device)
