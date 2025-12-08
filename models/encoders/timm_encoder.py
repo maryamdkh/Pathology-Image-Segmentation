@@ -5,24 +5,7 @@ import timm
 import torch
 import torch.nn as nn
 
-TIMM_ENCODERS = {
-    "timm_swin_tiny": "swin_tiny_patch4_window7_224",
-    "timm_swin_small": "swin_small_patch4_window7_224",
-    "timm_swin_base": "swin_base_patch4_window7_224",
-    "timm_vit_base": "vit_base_patch16_224",
-    "timm_vit_large": "vit_large_patch16_224",
-    "timm_maxvit_tiny": "maxvit_tiny_rw_224",
-    "timm_convnextv2_tiny": "convnextv2_tiny",
-    "timm_convnextv2_atto": "convnextv2_atto",
-    "timm_convnextv2_base":"convnextv2_base",
-    "timm_convnextv2_femto":"convnextv2_femto",
-    "timm_convnextv2_huge": "convnextv2_huge",
-    "timm_convnextv2_large": "convnextv2_large",
-    "timm_convnextv2_nano": "convnextv2_nano",
-    "timm_convnextv2_pico": "convnextv2_pico",
-    "timm_convnextv2_small": "convnextv2_small",
-    "timm_convnextv2_tiny": "convnextv2_tiny",
-}
+from models.encoders.timm_encoder_types import TIMM_ENCODERS
 
 class TimmUniversalEncoder(nn.Module):
     """
