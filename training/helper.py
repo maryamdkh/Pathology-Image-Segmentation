@@ -2,7 +2,36 @@ import torch
 import numpy as np
 from pathlib import Path
 
+def get_monitor_mode(metric_name: str) -> str:
+    """
+    Return optimization mode ('max' or 'min') for a given metric.
+    """
+    metric_name = metric_name.lower()
 
+    MAXIMIZE_METRICS = {
+        # Segmentation
+        "dice", "iou",
+
+        # Classification
+        "accuracy", "precision", "recall", "f1", "auc", "auroc", "ap",
+
+        # Generic
+        "score",
+    }
+
+    MINIMIZE_METRICS = {
+        "loss", "val_loss", "error",
+    }
+
+    if metric_name in MAXIMIZE_METRICS:
+        return "max"
+    if metric_name in MINIMIZE_METRICS:
+        return "min"
+
+    raise ValueError(
+        f"Unknown monitor metric '{metric_name}'. "
+        f"Please specify whether it should be minimized or maximized."
+    )
 class EarlyStopping:
     def __init__(self, patience=15, min_delta=1e-4, mode='max',best_score =None, restore_best=True, verbose=True):
         """
@@ -73,6 +102,16 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
+def build_early_stopper(best_monitor_metric, config):
+
+    return EarlyStopping(
+        patience=config["training"].get("early_stopping_patience", 15),
+        min_delta=config["training"].get("early_stopping_delta", 1e-4),
+        mode=get_monitor_mode(config['training']["monitor_metric"]),
+        best_score=best_monitor_metric,
+        verbose=True,
+    )
+
 def build_optimizer(model, config):
     opt_name = config["training"]["optimizer"].lower()
     lr = config["training"]["learning_rate"]
@@ -88,6 +127,9 @@ def build_optimizer(model, config):
         raise ValueError(f"Unsupported optimizer: {opt_name}")
 
 
+
+
+
 def build_scheduler(optimizer, config):
     sch_name = config["training"]["scheduler"].lower()
     num_epochs = config["training"]["num_epochs"]
@@ -97,7 +139,7 @@ def build_scheduler(optimizer, config):
     elif sch_name == "cosineannealingwarmrestartslr":
         return torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=20, T_mult=2,eta_min=1e-6)
     elif sch_name == "reducelronplateau":
-        mode = 'max' if config['training']["monitor_metric"] == "dice" else "min"
+        mode = get_monitor_mode(config['training']["monitor_metric"])
         return torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode=mode, factor=0.5, patience=3)
     else:
         raise ValueError(f"Unsupported scheduler: {sch_name}")

@@ -17,7 +17,7 @@ sys.path.insert(0, str(project_root))
 from utils.utils import get_device, free_gpu_memory
 from configs.config import load_config, setup_directories
 from utils.logging import setup_mlflow_logger
-from training.trainer import train_model
+from training.segmentation_trainer import train_model
 
 
 def setup_logging(level=logging.INFO):

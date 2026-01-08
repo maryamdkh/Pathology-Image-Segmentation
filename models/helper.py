@@ -3,6 +3,31 @@ import segmentation_models_pytorch as smp
 from typing import Dict
 from models.encoders.timm_encoder import TimmUniversalEncoder
 from models.wrappers.UnetPlusPlus import UnetPlusPlus 
+from models.wrappers.ClassificationModel import EncoderClassifier
+
+def extract_unetpp_encoder_state_dict(unetpp_state: dict) -> dict:
+    """
+    Extract encoder-only weights from a Unet++ checkpoint.
+
+    Expected key format:
+        encoder.xxx
+
+    Returns:
+        dict: state_dict compatible with TimmUniversalEncoder
+    """
+    encoder_state = {}
+
+    for key, value in unetpp_state.items():
+        if key.startswith("encoder."):
+            encoder_state[key.replace("encoder.", "", 1)] = value
+
+    if not encoder_state:
+        raise RuntimeError(
+            "❌ No encoder weights found. "
+            "This checkpoint does not look like a Unet++ model."
+        )
+
+    return encoder_state
 
 
 def build_seg_model(config: dict, device: torch.device = "cuda"):
@@ -117,3 +142,92 @@ def _build_majority_vote_ensemble(ensemble_cfg: Dict, device: torch.device) -> t
         print(f"   - {model_cfg['name']} (trained on {model_cfg['trained_on']})")
     
     return ensemble
+
+
+def build_single_classifier_model(
+    model_cfg: Dict,
+    device: torch.device,
+) -> torch.nn.Module:
+    """
+    Build a classification model.
+
+    Priority:
+    1) Resume full classifier training from checkpoint_path
+    2) Initialize encoder from Unet++ checkpoint (encoder_weights_path)
+    3) Train from scratch
+    """
+
+    encoder_name = model_cfg.get("encoder_name", "")
+    encoder_weights_path = model_cfg.get("encoder_weights_path", None)
+    checkpoint_path = model_cfg.get("checkpoint_path", None)
+
+    in_channels = model_cfg.get("in_channels", 3)
+    num_classes = model_cfg.get("classes", 1)
+
+    encoder_depth = model_cfg.get("encoder_depth", 5)
+    output_stride = model_cfg.get("output_stride", 32)
+
+    classifier_hidden_dim = model_cfg.get("classifier_hidden_dim", None)
+    dropout = model_cfg.get("dropout", 0.3)
+
+    # --- Build encoder ---
+    encoder = TimmUniversalEncoder(
+        name=encoder_name,
+        pretrained=False,
+        in_channels=in_channels,
+        depth=encoder_depth,
+        output_stride=output_stride,
+    )
+
+    # --- Build classifier ---
+    model = EncoderClassifier(
+        encoder=encoder,
+        num_classes=num_classes,
+        dropout=dropout,
+        hidden_dim=classifier_hidden_dim,
+    )
+
+    # ==========================================================
+    # 1️⃣ Resume classifier training (FULL model)
+    # ==========================================================
+    if checkpoint_path is not None:
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        state_dict = checkpoint.get("model_state", checkpoint)
+
+        missing, unexpected = model.load_state_dict(
+            state_dict,
+            strict=True,
+        )
+
+        print(f"🔁 Resumed classifier training from checkpoint:")
+        print(f"   {checkpoint_path}")
+        return model.to(device)
+
+    # ==========================================================
+    # 2️⃣ Load encoder-only weights from Unet++
+    # ==========================================================
+    if encoder_weights_path is not None:
+        checkpoint = torch.load(encoder_weights_path, map_location=device)
+        state_dict = checkpoint.get("model_state", checkpoint)
+
+        encoder_state = extract_unetpp_encoder_state_dict(state_dict)
+
+        missing, unexpected = model.encoder.load_state_dict(
+            encoder_state,
+            strict=False,
+        )
+
+        print(f"✅ Initialized encoder from Unet++ checkpoint:")
+        print(f"   {encoder_weights_path}")
+
+        if missing:
+            print(f"⚠️ Missing encoder keys: {len(missing)}")
+        if unexpected:
+            print(f"⚠️ Unexpected encoder keys: {len(unexpected)}")
+
+    # ==========================================================
+    # 3️⃣ Fresh initialization
+    # ==========================================================
+    print("🆕 Classifier initialized from scratch (no pretrained weights)")
+
+    return model.to(device)
