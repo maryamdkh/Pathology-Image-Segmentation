@@ -171,16 +171,29 @@ def resume_checkpoint(model, optimizer, scheduler, scaler, checkpoint_path, devi
     return start_epoch, best_val_metrics, patient_split
 
 
-def save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_metrics, patient_split, path):
-    torch.save({
-        "epoch": epoch,
-        "model_state": model.state_dict(),
-        "optimizer_state": optimizer.state_dict(),
-        "scheduler_state": scheduler.state_dict(),
-        "scaler_state": scaler.state_dict() if scaler else None,
-        "val_metrics": val_metrics,
-        "patient_split": {
-            "train_patients": patient_split["train_patients"].tolist(),
-            "val_patients": patient_split["val_patients"].tolist()
-        },
-    }, path)
+def save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_metrics , path,patient_split=None):
+    checkpoint = {
+          "epoch": epoch,
+          "model_state": model.state_dict(),
+          "optimizer_state": optimizer.state_dict() if optimizer else None,
+          "scheduler_state": scheduler.state_dict() if scheduler else None,
+          "scaler_state": scaler.state_dict() if scaler else None,
+          "val_metrics": val_metrics,
+      }
+    if patient_split is not None:
+        split_dict = {}
+
+        for key, value in patient_split.items():
+            if value is None:
+                continue
+            if hasattr(value, "tolist"):
+                split_dict[key] = value.tolist()
+            else:
+                split_dict[key] = list(value)
+
+        if len(split_dict) > 0:
+            checkpoint["patient_split"] = split_dict
+
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    torch.save(checkpoint, path)
+
